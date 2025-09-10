@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Video Search Tool</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 YouTube Video Search Tool</h1>
+        
+        <!-- Bước 1: Tìm kiếm với bộ lọc -->
+        <div class="search-section">
+            <h2>Bước 1: Tìm kiếm video</h2>
+            
+            <div class="search-input-group">
+                <input type="text" id="searchKeyword" placeholder="Nhập từ khóa tìm kiếm..." class="search-input">
+                <button id="searchBtn" class="search-btn">�� Tìm kiếm</button>
+            </div>
+            
+            <!-- Bộ lọc tìm kiếm -->
+            <div class="filters-section">
+                <h3>Bộ lọc tìm kiếm</h3>
+                
+                <div class="filter-group">
+                    <label>Ngày tải lên:</label>
+                    <select id="uploadDate">
+                        <option value="">Tất cả</option>
+                        <option value="hour">Một giờ qua</option>
+                        <option value="today">Hôm nay</option>
+                        <option value="week">Tuần này</option>
+                        <option value="month">Tháng này</option>
+                        <option value="year">Năm nay</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>Loại:</label>
+                    <select id="type">
+                        <option value="video">Video</option>
+                        <option value="channel">Kênh</option>
+                        <option value="playlist">Danh sách phát</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>Thời lượng:</label>
+                    <select id="duration">
+                        <option value="">Tất cả</option>
+                        <option value="short">Dưới 4 phút</option>
+                        <option value="medium">4-20 phút</option>
+                        <option value="long">Trên 20 phút</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>Tính năng:</label>
+                    <select id="features">
+                        <option value="">Tất cả</option>
+                        <option value="live">Trực tiếp</option>
+                        <option value="4k">4K</option>
+                        <option value="hd">HD</option>
+                        <option value="cc">Phụ đề</option>
+                        <option value="creativeCommons">Creative Commons</option>
+                        <option value="360">360°</option>
+                        <option value="hdr">HDR</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>Sắp xếp theo:</label>
+                    <select id="sortBy">
+                        <option value="relevance">Mức độ liên quan</option>
+                        <option value="date">Ngày tải lên</option>
+                        <option value="viewCount">Lượt xem</option>
+                        <option value="rating">Xếp hạng</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bước 2: Số lượng video và hiển thị kết quả -->
+        <div class="results-section">
+            <h2>Bước 2: Kết quả tìm kiếm</h2>
+            
+            <div class="results-controls">
+                <div class="quantity-input">
+                    <label for="videoCount">Số lượng video:</label>
+                    <input type="number" id="videoCount" value="10" min="1" max="50" class="count-input">
+                </div>
+                <button id="downloadBtn" class="download-btn" disabled>�� Tải thông tin về</button>
+            </div>
+            
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p>Đang tìm kiếm...</p>
+            </div>
+            
+            <div id="results" class="results-table hidden">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Cột 1<br>Từ khóa</th>
+                            <th>Cột 2<br>Tiêu đề video</th>
+                            <th>Cột 3<br>Link video (ID)</th>
+                            <th>Cột 4<br>Link video (Full)</th>
+                            <th>Cột 5<br>Tên kênh</th>
+                            <th>Cột 6<br>Link kênh</th>
+                            <th>Cột 7<br>Thời lượng</th>
+                            <th>Cột 8<br>Tổng hợp</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody">
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="error" class="error hidden">
+                <p>❌ Có lỗi xảy ra khi tìm kiếm. Vui lòng thử lại.</p>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
