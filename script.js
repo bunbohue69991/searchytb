@@ -169,7 +169,7 @@ class YouTubeSearchTool {
                     channelName: video.snippet.channelTitle,
                     channelUrl: `https://www.youtube.com/channel/${video.snippet.channelId}`,
                     duration: duration,
-                    summary: this.createSummary(video.snippet.channelTitle, video.snippet.channelId, video.snippet.title, video.id, duration)
+                    summary: this.createSummary(video.snippet.channelTitle, video.snippet.channelId, video.snippet.title, video.id, duration, keyword)
                 };
             });
             
@@ -197,8 +197,8 @@ class YouTubeSearchTool {
         }
     }
     
-    createSummary(channelName, channelId, title, videoId, duration) {
-        return `${channelName}---https://www.youtube.com/channel/${channelId}---${title}---https://www.youtube.com/watch?v=${videoId}&ab_channel=${channelId}---${duration}`;
+    createSummary(channelName, channelId, title, videoId, duration, keyword) {
+        return `${channelName}---https://www.youtube.com/channel/${channelId}---${title}---https://www.youtube.com/watch?v=${videoId}&ab_channel=${channelId}---${duration}---${keyword}`;
     }
     
     displayResults() {
