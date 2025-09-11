@@ -180,7 +180,8 @@ class YouTubeSearchTool {
     async getVideoDetails(videoItems, keyword) {
         try {
             const videoIds = videoItems.map(item => item.id.videoId).join(',');
-            const response = await fetch(`${this.baseUrl}/videos?part=snippet,contentDetails&id=${videoIds}&key=${this.apiKey}`);
+            // Thêm part 'liveStreamingDetails' để lấy thông tin video live
+            const response = await fetch(`${this.baseUrl}/videos?part=snippet,contentDetails,liveStreamingDetails&id=${videoIds}&key=${this.apiKey}`);
             const data = await response.json();
             
             if (data.error) {
@@ -189,7 +190,7 @@ class YouTubeSearchTool {
             
             const newResults = data.items.map((video, index) => {
                 const searchItem = videoItems[index];
-                const duration = this.formatDuration(video.contentDetails.duration);
+                const duration = this.formatDuration(video.contentDetails.duration, video.liveStreamingDetails);
                 return {
                     keyword: keyword,
                     title: video.snippet.title,
@@ -211,7 +212,26 @@ class YouTubeSearchTool {
         }
     }
     
-    formatDuration(duration) {
+    formatDuration(duration, liveStreamingDetails = null) {
+        // Kiểm tra nếu là video live
+        if (liveStreamingDetails && liveStreamingDetails.actualStartTime) {
+            const startTime = new Date(liveStreamingDetails.actualStartTime);
+            const currentTime = new Date();
+            const elapsedMs = currentTime - startTime;
+            
+            // Chuyển đổi milliseconds thành giờ:phút:giây
+            const hours = Math.floor(elapsedMs / (1000 * 60 * 60));
+            const minutes = Math.floor((elapsedMs % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((elapsedMs % (1000 * 60)) / 1000);
+            
+            if (hours > 0) {
+                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            } else {
+                return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }
+        
+        // Xử lý video thường
         const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
         if (!match) return '00:00';
         
