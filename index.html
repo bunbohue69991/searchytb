@@ -15,8 +15,8 @@
             <h2>Bước 1: Tìm kiếm video</h2>
             
             <div class="search-input-group">
-                <input type="text" id="searchKeyword" placeholder="Nhập từ khóa tìm kiếm (cách nhau bởi dấu |)..." class="search-input">
-                <button id="searchBtn" class="search-btn">�� Tìm kiếm</button>
+                <textarea id="searchKeyword" placeholder="Nhập từ khóa tìm kiếm (mỗi từ khóa trên một dòng)..." class="search-textarea" rows="3"></textarea>
+                <button id="searchBtn" class="search-btn">🔍 Tìm kiếm</button>
             </div>
             
             <!-- Bộ lọc tìm kiếm -->
@@ -88,6 +88,19 @@
                 <div class="quantity-input">
                     <label for="videoCount">Số lượng video:</label>
                     <input type="number" id="videoCount" value="10" min="1" max="50" class="count-input">
+                </div>
+                <div class="custom-fields">
+                    <div class="custom-field">
+                        <label for="customDuration">Thời lượng tùy chỉnh (tùy chọn):</label>
+                        <input type="text" id="customDuration" placeholder="VD: 03:46" class="custom-input">
+                    </div>
+                    <div class="custom-field">
+                        <label for="customValue">Giá trị bổ sung (tùy chọn):</label>
+                        <input type="text" id="customValue" placeholder="VD: Rain Sounds for Sleeping" class="custom-input">
+                    </div>
+                    <div class="apply-field">
+                        <button id="applyBtn" class="apply-btn" disabled>🔄 Áp dụng</button>
+                    </div>
                 </div>
                 <div class="button-group">
                     <button id="downloadBtn" class="download-btn" disabled>📋 Copy tất cả dữ liệu</button>
