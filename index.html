@@ -15,7 +15,7 @@
             <h2>Bước 1: Tìm kiếm video</h2>
             
             <div class="search-input-group">
-                <input type="text" id="searchKeyword" placeholder="Nhập từ khóa tìm kiếm..." class="search-input">
+                <input type="text" id="searchKeyword" placeholder="Nhập từ khóa tìm kiếm (cách nhau bởi dấu |)..." class="search-input">
                 <button id="searchBtn" class="search-btn">�� Tìm kiếm</button>
             </div>
             
@@ -89,7 +89,10 @@
                     <label for="videoCount">Số lượng video:</label>
                     <input type="number" id="videoCount" value="10" min="1" max="50" class="count-input">
                 </div>
-                <button id="downloadBtn" class="download-btn" disabled>�� Copy tất cả dữ liệu</button>
+                <div class="button-group">
+                    <button id="downloadBtn" class="download-btn" disabled>📋 Copy tất cả dữ liệu</button>
+                    <button id="copyColumn8Btn" class="copy-column8-btn" disabled> Copy cột 8</button>
+                </div>
             </div>
             
             <div id="loading" class="loading hidden">

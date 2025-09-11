@@ -119,6 +119,11 @@ h3 {
     border-radius: 10px;
 }
 
+.button-group {
+    display: flex;
+    gap: 10px;
+}
+
 .quantity-input {
     display: flex;
     align-items: center;
@@ -148,11 +153,24 @@ h3 {
     transition: transform 0.2s;
 }
 
-.download-btn:hover:not(:disabled) {
+.copy-column8-btn {
+    padding: 12px 25px;
+    background: linear-gradient(45deg, #4ecdc4, #44a08d);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.download-btn:hover:not(:disabled),
+.copy-column8-btn:hover:not(:disabled) {
     transform: translateY(-2px);
 }
 
-.download-btn:disabled {
+.download-btn:disabled,
+.copy-column8-btn:disabled {
     background: #ccc;
     cursor: not-allowed;
 }
@@ -300,6 +318,7 @@ class YouTubeSearchTool {
     initializeEventListeners() {
         document.getElementById('searchBtn').addEventListener('click', () => this.searchVideos());
         document.getElementById('downloadBtn').addEventListener('click', () => this.downloadResults());
+        document.getElementById('copyColumn8Btn').addEventListener('click', () => this.copyColumn8());
         
         // Enter key để tìm kiếm
         document.getElementById('searchKeyword').addEventListener('keypress', (e) => {
@@ -408,6 +427,7 @@ class YouTubeSearchTool {
             
             this.displayResults();
             document.getElementById('downloadBtn').disabled = false;
+            document.getElementById('copyColumn8Btn').disabled = false;
             
         } catch (error) {
             console.error('Video details error:', error);
@@ -495,6 +515,45 @@ class YouTubeSearchTool {
         
         return [headers, ...rows].map(row => row.join(',')).join('\n');
     }
+
+    copyColumn8() {
+        if (this.searchResults.length === 0) {
+            alert('Không có dữ liệu để copy!');
+            return;
+        }
+        
+        // Lấy tất cả dữ liệu cột 8 (summary)
+        const column8Data = this.searchResults.map(result => result.summary);
+        
+        // Chuyển đổi thành text với xuống dòng ngăn cách
+        const textToCopy = column8Data.join('\n');
+        
+        // Copy vào clipboard
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            // Tạo thông báo tạm thời
+            const notification = document.createElement('div');
+            notification.textContent = 'Đã copy cột 8!';
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #4ecdc4;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 5px;
+                z-index: 1000;
+                font-weight: bold;
+            `;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 2000);
+        }).catch(err => {
+            console.error('Copy failed:', err);
+            alert('Không thể copy. Vui lòng copy thủ công.');
+        });
+    }
     
     showLoading() {
         document.getElementById('loading').classList.remove('hidden');
@@ -548,5 +607,4 @@ function copyToClipboard(text) {
 document.addEventListener('DOMContentLoaded', () => {
     new YouTubeSearchTool();
 });
-```
 

@@ -10,6 +10,7 @@ class YouTubeSearchTool {
     initializeEventListeners() {
         document.getElementById('searchBtn').addEventListener('click', () => this.searchVideos());
         document.getElementById('downloadBtn').addEventListener('click', () => this.downloadResults());
+        document.getElementById('copyColumn8Btn').addEventListener('click', () => this.copyColumn8());
         
         // Enter key để tìm kiếm
         document.getElementById('searchKeyword').addEventListener('keypress', (e) => {
@@ -20,39 +21,45 @@ class YouTubeSearchTool {
     }
     
     async searchVideos() {
-        const keyword = document.getElementById('searchKeyword').value.trim();
+        const keywordInput = document.getElementById('searchKeyword').value.trim();
         const videoCount = parseInt(document.getElementById('videoCount').value);
         
-        if (!keyword) {
+        if (!keywordInput) {
             alert('Vui lòng nhập từ khóa tìm kiếm!');
+            return;
+        }
+        
+        // Tách từ khóa bằng dấu |
+        const keywords = keywordInput.split('|').map(k => k.trim()).filter(k => k.length > 0);
+        
+        if (keywords.length === 0) {
+            alert('Vui lòng nhập ít nhất một từ khóa!');
             return;
         }
         
         this.showLoading();
         this.hideError();
         
+        // Xóa kết quả cũ
+        this.searchResults = [];
+        
         try {
             const filters = this.getSearchFilters();
-            const searchParams = {
-                part: 'snippet',
-                q: keyword,
-                type: 'video',
-                maxResults: Math.min(videoCount, 50),
-                key: this.apiKey,
-                ...filters
-            };
             
-            const response = await fetch(`${this.baseUrl}/search?${new URLSearchParams(searchParams)}`);
-            const data = await response.json();
-            
-            if (data.error) {
-                throw new Error(data.error.message);
+            // Tìm kiếm cho từng từ khóa
+            for (const keyword of keywords) {
+                await this.searchSingleKeyword(keyword, videoCount, filters);
+                
+                // Thêm delay nhỏ giữa các request để tránh rate limit
+                await new Promise(resolve => setTimeout(resolve, 100));
             }
             
-            if (data.items && data.items.length > 0) {
-                await this.getVideoDetails(data.items, keyword);
+            if (this.searchResults.length > 0) {
+                this.displayResults();
+                document.getElementById('downloadBtn').disabled = false;
+                document.getElementById('copyColumn8Btn').disabled = false;
             } else {
-                this.showError('Không tìm thấy video nào với từ khóa này.');
+                this.showError('Không tìm thấy video nào với các từ khóa này.');
             }
             
         } catch (error) {
@@ -61,6 +68,28 @@ class YouTubeSearchTool {
         }
         
         this.hideLoading();
+    }
+    
+    async searchSingleKeyword(keyword, videoCount, filters) {
+        const searchParams = {
+            part: 'snippet',
+            q: keyword,
+            type: 'video',
+            maxResults: Math.min(videoCount, 50),
+            key: this.apiKey,
+            ...filters
+        };
+        
+        const response = await fetch(`${this.baseUrl}/search?${new URLSearchParams(searchParams)}`);
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error.message);
+        }
+        
+        if (data.items && data.items.length > 0) {
+            await this.getVideoDetails(data.items, keyword);
+        }
     }
     
     getSearchFilters() {
@@ -158,7 +187,7 @@ class YouTubeSearchTool {
                 throw new Error(data.error.message);
             }
             
-            this.searchResults = data.items.map((video, index) => {
+            const newResults = data.items.map((video, index) => {
                 const searchItem = videoItems[index];
                 const duration = this.formatDuration(video.contentDetails.duration);
                 return {
@@ -173,8 +202,8 @@ class YouTubeSearchTool {
                 };
             });
             
-            this.displayResults();
-            document.getElementById('downloadBtn').disabled = false;
+            // Thêm kết quả mới vào danh sách hiện tại
+            this.searchResults = this.searchResults.concat(newResults);
             
         } catch (error) {
             console.error('Video details error:', error);
@@ -252,6 +281,45 @@ class YouTubeSearchTool {
             // Tạo thông báo tạm thời
             const notification = document.createElement('div');
             notification.textContent = 'Đã copy tất cả dữ liệu!';
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #4ecdc4;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 5px;
+                z-index: 1000;
+                font-weight: bold;
+            `;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 2000);
+        }).catch(err => {
+            console.error('Copy failed:', err);
+            alert('Không thể copy. Vui lòng copy thủ công.');
+        });
+    }
+
+    copyColumn8() {
+        if (this.searchResults.length === 0) {
+            alert('Không có dữ liệu để copy!');
+            return;
+        }
+        
+        // Lấy tất cả dữ liệu cột 8 (summary)
+        const column8Data = this.searchResults.map(result => result.summary);
+        
+        // Chuyển đổi thành text với xuống dòng ngăn cách
+        const textToCopy = column8Data.join('\n');
+        
+        // Copy vào clipboard
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            // Tạo thông báo tạm thời
+            const notification = document.createElement('div');
+            notification.textContent = 'Đã copy cột 8!';
             notification.style.cssText = `
                 position: fixed;
                 top: 20px;
