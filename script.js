@@ -169,7 +169,7 @@ class YouTubeSearchTool {
                     channelName: video.snippet.channelTitle,
                     channelUrl: `https://www.youtube.com/channel/${video.snippet.channelId}`,
                     duration: duration,
-                    summary: this.createSummary(video.snippet.channelTitle, video.snippet.channelId, video.snippet.title, video.id)
+                    summary: this.createSummary(video.snippet.channelTitle, video.snippet.channelId, video.snippet.title, video.id, duration)
                 };
             });
             
@@ -197,8 +197,8 @@ class YouTubeSearchTool {
         }
     }
     
-    createSummary(channelName, channelId, title, videoId) {
-        return `${channelName}--https://www.youtube.com/channel/${channelId}--${title}--https://www.youtube.com/watch?v=${videoId}&ab_channel=${channelId}--00:02`;
+    createSummary(channelName, channelId, title, videoId, duration) {
+        return `${channelName}---https://www.youtube.com/channel/${channelId}---${title}---https://www.youtube.com/watch?v=${videoId}&ab_channel=${channelId}---${duration}`;
     }
     
     displayResults() {
@@ -228,23 +228,50 @@ class YouTubeSearchTool {
     
     downloadResults() {
         if (this.searchResults.length === 0) {
-            alert('Không có dữ liệu để tải về!');
+            alert('Không có dữ liệu để copy!');
             return;
         }
         
-        const csvContent = this.generateCSV();
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
+        // Tạo nội dung để copy tất cả 8 cột
+        const allData = this.searchResults.map(result => [
+            result.keyword,
+            result.title,
+            result.videoId,
+            result.videoUrl,
+            result.channelName,
+            result.channelUrl,
+            result.duration,
+            result.summary
+        ]);
         
-        if (link.download !== undefined) {
-            const url = URL.createObjectURL(blob);
-            link.setAttribute('href', url);
-            link.setAttribute('download', `youtube_search_results_${new Date().toISOString().split('T')[0]}.csv`);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
+        // Chuyển đổi thành text với tab ngăn cách
+        const textToCopy = allData.map(row => row.join('\t')).join('\n');
+        
+        // Copy vào clipboard
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            // Tạo thông báo tạm thời
+            const notification = document.createElement('div');
+            notification.textContent = 'Đã copy tất cả dữ liệu!';
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #4ecdc4;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 5px;
+                z-index: 1000;
+                font-weight: bold;
+            `;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 2000);
+        }).catch(err => {
+            console.error('Copy failed:', err);
+            alert('Không thể copy. Vui lòng copy thủ công.');
+        });
     }
     
     generateCSV() {
