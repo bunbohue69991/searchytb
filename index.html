@@ -10,18 +10,54 @@
     <div class="container">
         <h1>🔍 YouTube Video Search Tool</h1>
         
+        <!-- API Key Section -->
+        <div class="api-key-section">
+            <h2>🔑 Cấu hình API Key</h2>
+            <div class="api-key-input-group">
+                <div class="api-key-field">
+                    <label for="apiKeyInput">YouTube API Key:</label>
+                    <input type="password" id="apiKeyInput" placeholder="Nhập YouTube API Key của bạn..." class="api-key-input">
+                    <button id="toggleApiKey" class="toggle-btn" type="button">👁️</button>
+                </div>
+                <div class="api-key-info">
+                    <p>💡 <strong>Hướng dẫn lấy API Key:</strong></p>
+                    <ol>
+                        <li>Truy cập <a href="https://console.developers.google.com/" target="_blank">Google Cloud Console</a></li>
+                        <li>Tạo project mới hoặc chọn project hiện có</li>
+                        <li>Bật YouTube Data API v3</li>
+                        <li>Tạo API Key trong phần Credentials</li>
+                        <li>Copy và dán vào ô trên</li>
+                    </ol>
+                    <p class="api-status" id="apiStatus">❌ Chưa nhập API Key</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Bước 1: Tìm kiếm với bộ lọc -->
         <div class="search-section">
             <h2>Bước 1: Tìm kiếm video</h2>
             
             <div class="search-input-group">
-                <textarea id="searchKeyword" placeholder="Nhập từ khóa tìm kiếm (mỗi từ khóa trên một dòng)..." class="search-textarea" rows="3"></textarea>
+                <textarea id="searchKeyword" placeholder="Nhập từ khóa tìm kiếm (có thể ngắt bằng xuống dòng hoặc dấu phẩy)...
+Ví dụ: 
+relaxing music, rain sounds
+meditation music
+sleep music, nature sounds" class="search-textarea" rows="3"></textarea>
                 <button id="searchBtn" class="search-btn">🔍 Tìm kiếm</button>
             </div>
             
             <!-- Bộ lọc tìm kiếm -->
             <div class="filters-section">
                 <h3>Bộ lọc tìm kiếm</h3>
+                
+                <div class="keyword-info">
+                    <p><strong>💡 Cách nhập từ khóa:</strong></p>
+                    <ul>
+                        <li><strong>Xuống dòng:</strong> Mỗi từ khóa trên một dòng riêng</li>
+                        <li><strong>Dấu phẩy:</strong> Ngăn cách bằng dấu phẩy trong cùng dòng</li>
+                        <li><strong>Kết hợp:</strong> Có thể dùng cả hai cách cùng lúc</li>
+                    </ul>
+                </div>
                 
                 <div class="filter-group">
                     <label>Ngày tải lên:</label>
@@ -97,6 +133,20 @@
                     <div class="custom-field">
                         <label for="customValue">Giá trị bổ sung (tùy chọn):</label>
                         <input type="text" id="customValue" placeholder="VD: Rain Sounds for Sleeping" class="custom-input">
+                    </div>
+                    <div class="custom-field format-options">
+                        <label class="format-title">Thêm vào cuối tổng hợp:</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="addChannelName" class="format-checkbox">
+                                <span class="checkbox-text">|tên kênh</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="addVideoTitle" class="format-checkbox">
+                                <span class="checkbox-text">|tên video</span>
+                            </label>
+                        </div>
+                        <small class="format-help">Có thể chọn cả hai. Thứ tự hiển thị theo thứ tự tick.</small>
                     </div>
                     <div class="apply-field">
                         <button id="applyBtn" class="apply-btn" disabled>🔄 Áp dụng</button>

@@ -1,24 +1,67 @@
 class YouTubeSearchTool {
     constructor() {
-        // Sử dụng API key mới hoặc thêm nhiều API key để tránh quota
-        this.apiKeys = [
-            'AIzaSyBjOpGZloLYRODbhLHmwBHAiDGW5gyL-kA',
-            'AIzaSyBuaYNucuCrJrOzSEN2wIG2yGxUKVBKbvM'
-        ];
-        this.currentApiKeyIndex = 0;
+        // Không còn sử dụng API key cố định
         this.baseUrl = 'https://www.googleapis.com/youtube/v3';
         this.searchResults = [];
         
         this.initializeEventListeners();
+        this.loadSavedApiKey();
     }
     
     getCurrentApiKey() {
-        return this.apiKeys[this.currentApiKeyIndex];
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        return apiKeyInput.value.trim();
     }
     
-    switchToNextApiKey() {
-        this.currentApiKeyIndex = (this.currentApiKeyIndex + 1) % this.apiKeys.length;
-        console.log(`Switched to API key index: ${this.currentApiKeyIndex}`);
+    loadSavedApiKey() {
+        // Tải API key đã lưu từ localStorage
+        const savedApiKey = localStorage.getItem('youtube_api_key');
+        if (savedApiKey) {
+            document.getElementById('apiKeyInput').value = savedApiKey;
+            this.validateApiKey();
+        }
+    }
+    
+    saveApiKey() {
+        // Lưu API key vào localStorage
+        const apiKey = this.getCurrentApiKey();
+        if (apiKey) {
+            localStorage.setItem('youtube_api_key', apiKey);
+        } else {
+            localStorage.removeItem('youtube_api_key');
+        }
+    }
+    
+    async validateApiKey() {
+        const apiKey = this.getCurrentApiKey();
+        const statusElement = document.getElementById('apiStatus');
+        
+        if (!apiKey) {
+            statusElement.textContent = '❌ Chưa nhập API Key';
+            statusElement.className = 'api-status invalid';
+            return false;
+        }
+        
+        try {
+            // Test API key bằng một request đơn giản
+            const response = await fetch(`${this.baseUrl}/search?part=snippet&q=test&maxResults=1&key=${apiKey}`);
+            const data = await response.json();
+            
+            if (data.error) {
+                statusElement.textContent = '❌ API Key không hợp lệ: ' + data.error.message;
+                statusElement.className = 'api-status invalid';
+                return false;
+            } else {
+                statusElement.textContent = '✅ API Key hợp lệ';
+                statusElement.className = 'api-status valid';
+                this.saveApiKey();
+                return true;
+            }
+        } catch (error) {
+            statusElement.textContent = '❌ Không thể kiểm tra API Key';
+            statusElement.className = 'api-status invalid';
+            return false;
+        }
     }
     
     initializeEventListeners() {
@@ -26,9 +69,61 @@ class YouTubeSearchTool {
         document.getElementById('downloadBtn').addEventListener('click', () => this.downloadResults());
         document.getElementById('copyColumn8Btn').addEventListener('click', () => this.copyColumn8());
         document.getElementById('applyBtn').addEventListener('click', () => this.applyCustomValues());
+        
+        // API Key events
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const toggleBtn = document.getElementById('toggleApiKey');
+        
+        apiKeyInput.addEventListener('input', () => {
+            // Reset status khi user thay đổi
+            const statusElement = document.getElementById('apiStatus');
+            statusElement.textContent = '⏳ Nhập API Key và bấm tìm kiếm để kiểm tra';
+            statusElement.className = 'api-status';
+        });
+        
+        apiKeyInput.addEventListener('blur', () => {
+            this.saveApiKey();
+        });
+        
+        toggleBtn.addEventListener('click', () => {
+            if (apiKeyInput.type === 'password') {
+                apiKeyInput.type = 'text';
+                toggleBtn.textContent = '🙈';
+            } else {
+                apiKeyInput.type = 'password';
+                toggleBtn.textContent = '👁️';
+            }
+        });
+        
+        // Format checkbox events
+        document.getElementById('addChannelName').addEventListener('change', (e) => {
+            if (e.target.checked) {
+                this.updateTickOrder('channelName');
+            } else {
+                this.removeFromTickOrder('channelName');
+            }
+            this.updateResultsIfAvailable();
+        });
+        
+        document.getElementById('addVideoTitle').addEventListener('change', (e) => {
+            if (e.target.checked) {
+                this.updateTickOrder('videoTitle');
+            } else {
+                this.removeFromTickOrder('videoTitle');
+            }
+            this.updateResultsIfAvailable();
+        });
     }
     
     async searchVideos() {
+        // Kiểm tra API key trước khi tìm kiếm
+        const apiKey = this.getCurrentApiKey();
+        if (!apiKey) {
+            alert('Vui lòng nhập YouTube API Key trước khi tìm kiếm!');
+            document.getElementById('apiKeyInput').focus();
+            return;
+        }
+        
         const keywordInput = document.getElementById('searchKeyword').value.trim();
         const videoCount = parseInt(document.getElementById('videoCount').value);
         
@@ -37,11 +132,11 @@ class YouTubeSearchTool {
             return;
         }
         
-        // Tách từ khóa bằng xuống dòng
-        const keywords = keywordInput.split('\n').map(k => k.trim()).filter(k => k.length > 0);
+        // Tách từ khóa bằng cả xuống dòng VÀ dấu phẩy
+        const keywords = this.parseKeywords(keywordInput);
         
         if (keywords.length === 0) {
-            alert('Vui lòng nhập ít nhất một từ khóa!');
+            alert('Vui lòng nhập ít nhất một từ khóa hợp lệ!');
             return;
         }
         
@@ -52,11 +147,20 @@ class YouTubeSearchTool {
         this.searchResults = [];
         
         try {
+            // Validate API key trước khi bắt đầu tìm kiếm
+            const isValidKey = await this.validateApiKey();
+            if (!isValidKey) {
+                throw new Error('API Key không hợp lệ. Vui lòng kiểm tra lại.');
+            }
+            
             const filters = this.getSearchFilters();
+            
+            // Hiển thị số lượng từ khóa sẽ tìm
+            console.log(`Bắt đầu tìm kiếm với ${keywords.length} từ khóa:`, keywords);
             
             // Tìm kiếm cho từng từ khóa
             for (const keyword of keywords) {
-                await this.searchSingleKeywordWithRetry(keyword, videoCount, filters);
+                await this.searchSingleKeyword(keyword, videoCount, filters);
                 
                 // Thêm delay nhỏ giữa các request để tránh rate limit
                 await new Promise(resolve => setTimeout(resolve, 200));
@@ -77,6 +181,31 @@ class YouTubeSearchTool {
         }
         
         this.hideLoading();
+    }
+    
+    parseKeywords(input) {
+        // Bước 1: Tách theo xuống dòng trước
+        const linesByNewline = input.split('\n');
+        
+        // Bước 2: Với mỗi dòng, tách tiếp theo dấu phẩy
+        const allKeywords = [];
+        
+        linesByNewline.forEach(line => {
+            // Tách theo dấu phẩy trong mỗi dòng
+            const keywordsInLine = line.split(',');
+            keywordsInLine.forEach(keyword => {
+                const trimmedKeyword = keyword.trim();
+                if (trimmedKeyword.length > 0) {
+                    allKeywords.push(trimmedKeyword);
+                }
+            });
+        });
+        
+        // Loại bỏ từ khóa trùng lặp (nếu có)
+        const uniqueKeywords = [...new Set(allKeywords)];
+        
+        console.log('Parsed keywords:', uniqueKeywords);
+        return uniqueKeywords;
     }
     
     getSearchFilters() {
@@ -165,16 +294,14 @@ class YouTubeSearchTool {
     }
     
     async searchSingleKeywordWithRetry(keyword, videoCount, filters, retryCount = 0) {
-        const maxRetries = this.apiKeys.length - 1;
+        const maxRetries = 1; // Only retry once for now, as we are using a single API key
         
         try {
             await this.searchSingleKeyword(keyword, videoCount, filters);
         } catch (error) {
             if (error.message.includes('quota') && retryCount < maxRetries) {
-                console.log(`API key ${this.currentApiKeyIndex} hết quota, chuyển sang API key tiếp theo...`);
-                this.switchToNextApiKey();
-                await this.searchSingleKeywordWithRetry(keyword, videoCount, filters, retryCount + 1);
-            } else if (error.message.includes('quota')) {
+                console.log(`API key hết quota, chuyển sang API key tiếp theo...`);
+                // No next API key to switch to, as we are using a single key
                 throw new Error('Tất cả API key đã hết quota. Vui lòng thử lại sau.');
             } else {
                 throw error;
@@ -188,7 +315,7 @@ class YouTubeSearchTool {
             q: keyword,
             type: 'video',
             maxResults: Math.min(videoCount, 50),
-            key: this.getCurrentApiKey(),
+            key: this.getCurrentApiKey(), // Sử dụng API key từ input
             ...filters
         };
         
@@ -196,28 +323,23 @@ class YouTubeSearchTool {
         const data = await response.json();
         
         if (data.error) {
-            if (data.error.message.includes('quota')) {
-                throw new Error('API quota exceeded');
-            }
             throw new Error(data.error.message);
         }
         
         if (data.items && data.items.length > 0) {
-            await this.getVideoDetailsWithRetry(data.items, keyword);
+            await this.getVideoDetails(data.items, keyword);
         }
     }
     
     async getVideoDetailsWithRetry(videoItems, keyword, retryCount = 0) {
-        const maxRetries = this.apiKeys.length - 1;
+        const maxRetries = 1; // Only retry once for now, as we are using a single API key
         
         try {
             await this.getVideoDetails(videoItems, keyword);
         } catch (error) {
             if (error.message.includes('quota') && retryCount < maxRetries) {
-                console.log(`API key ${this.currentApiKeyIndex} hết quota trong getVideoDetails, chuyển sang API key tiếp theo...`);
-                this.switchToNextApiKey();
-                await this.getVideoDetailsWithRetry(videoItems, keyword, retryCount + 1);
-            } else if (error.message.includes('quota')) {
+                console.log(`API key hết quota trong getVideoDetails, chuyển sang API key tiếp theo...`);
+                // No next API key to switch to, as we are using a single key
                 throw new Error('Tất cả API key đã hết quota. Vui lòng thử lại sau.');
             } else {
                 throw error;
@@ -232,9 +354,6 @@ class YouTubeSearchTool {
             const data = await response.json();
             
             if (data.error) {
-                if (data.error.message.includes('quota')) {
-                    throw new Error('API quota exceeded');
-                }
                 throw new Error(data.error.message);
             }
             
@@ -250,17 +369,16 @@ class YouTubeSearchTool {
                     channelName: video.snippet.channelTitle,
                     channelUrl: `https://www.youtube.com/channel/${video.snippet.channelId}`,
                     duration: originalDuration,
-                    originalDuration: originalDuration, // Lưu thời lượng gốc
+                    originalDuration: originalDuration,
                     summary: this.createSummary(video.snippet.channelTitle, video.snippet.channelId, video.snippet.title, video.id, originalDuration, keyword, '')
                 };
             });
             
-            // Thêm kết quả mới vào danh sách hiện tại
             this.searchResults = this.searchResults.concat(newResults);
             
         } catch (error) {
             console.error('Video details error:', error);
-            throw error; // Re-throw để xử lý ở level cao hơn
+            throw error;
         }
     }
     
@@ -299,14 +417,71 @@ class YouTubeSearchTool {
     }
     
     createSummary(channelName, channelId, title, videoId, duration, keyword, customValue = '') {
+        // Format cơ bản
         let summary = `${channelName}---https://www.youtube.com/channel/${channelId}---${title}---https://www.youtube.com/watch?v=${videoId}&ab_channel=${channelId}---${duration}---${keyword}`;
         
-        // Thêm giá trị bổ sung nếu có (không thêm dấu ---)
+        // Thêm các phần tùy chọn vào cuối
+        const additions = this.getFormatAdditions(channelName, title);
+        if (additions) {
+            summary += additions;
+        }
+        
+        // Thêm giá trị bổ sung nếu có
         if (customValue) {
-            summary += customValue;
+            summary += `---${customValue}`;
         }
         
         return summary;
+    }
+    
+    getFormatAdditions(channelName, videoTitle) {
+        const addChannelName = document.getElementById('addChannelName')?.checked || false;
+        const addVideoTitle = document.getElementById('addVideoTitle')?.checked || false;
+        
+        if (!addChannelName && !addVideoTitle) {
+            return '';
+        }
+        
+        let additions = '';
+        
+        // Lấy thứ tự các checkbox được tick (theo thời gian tick)
+        const tickOrder = this.getTickOrder();
+        
+        tickOrder.forEach(option => {
+            if (option === 'channelName' && addChannelName) {
+                additions += `|${channelName}`;
+            } else if (option === 'videoTitle' && addVideoTitle) {
+                additions += `|${videoTitle}`;
+            }
+        });
+        
+        return additions;
+    }
+    
+    getTickOrder() {
+        // Trả về thứ tự các option được tick
+        // Mặc định là channelName trước, videoTitle sau
+        return this.tickOrder || ['channelName', 'videoTitle'];
+    }
+    
+    updateTickOrder(option) {
+        if (!this.tickOrder) {
+            this.tickOrder = [];
+        }
+        
+        // Xóa option khỏi danh sách nếu đã có
+        this.tickOrder = this.tickOrder.filter(item => item !== option);
+        
+        // Thêm vào cuối danh sách
+        this.tickOrder.push(option);
+        
+        console.log('Tick order updated:', this.tickOrder);
+    }
+    
+    removeFromTickOrder(option) {
+        if (this.tickOrder) {
+            this.tickOrder = this.tickOrder.filter(item => item !== option);
+        }
     }
     
     applyCustomValues() {
@@ -337,7 +512,19 @@ class YouTubeSearchTool {
         
         // Thông báo thành công
         const notification = document.createElement('div');
-        notification.textContent = 'Đã áp dụng thành công!';
+        const addChannelName = document.getElementById('addChannelName').checked;
+        const addVideoTitle = document.getElementById('addVideoTitle').checked;
+        
+        let formatInfo = '';
+        if (addChannelName && addVideoTitle) {
+            formatInfo = ' với |tên kênh và |tên video';
+        } else if (addChannelName) {
+            formatInfo = ' với |tên kênh';
+        } else if (addVideoTitle) {
+            formatInfo = ' với |tên video';
+        }
+        
+        notification.textContent = `Đã áp dụng thành công${formatInfo}!`;
         notification.style.cssText = `
             position: fixed;
             top: 20px;
@@ -353,7 +540,7 @@ class YouTubeSearchTool {
         
         setTimeout(() => {
             document.body.removeChild(notification);
-        }, 2000);
+        }, 3000);
     }
     
     displayResults() {
@@ -485,6 +672,29 @@ class YouTubeSearchTool {
     
     hideError() {
         document.getElementById('error').classList.add('hidden');
+    }
+
+    updateResultsIfAvailable() {
+        // Tự động cập nhật kết quả nếu đã có dữ liệu
+        if (this.searchResults.length > 0) {
+            const customDuration = document.getElementById('customDuration').value.trim();
+            const customValue = document.getElementById('customValue').value.trim();
+            
+            this.searchResults.forEach(result => {
+                const finalDuration = customDuration || result.originalDuration;
+                result.summary = this.createSummary(
+                    result.channelName,
+                    result.channelUrl.split('/').pop(),
+                    result.title,
+                    result.videoId,
+                    finalDuration,
+                    result.keyword,
+                    customValue
+                );
+            });
+            
+            this.displayResults();
+        }
     }
 }
 
