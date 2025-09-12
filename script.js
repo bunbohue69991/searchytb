@@ -73,14 +73,6 @@ class YouTubeSearchTool {
         }
     }
     
-    createAtUsername(channelName) {
-        // Chuyển tên kênh thành @username
-        return channelName
-            .toLowerCase()
-            .replace(/[^a-z0-9]/g, '') // Chỉ giữ chữ và số
-            .replace(/\s+/g, ''); // Xóa khoảng trắng
-    }
-    
     initializeEventListeners() {
         document.getElementById('searchBtn').addEventListener('click', () => this.searchVideos());
         document.getElementById('downloadBtn').addEventListener('click', () => this.downloadResults());
@@ -360,6 +352,10 @@ class YouTubeSearchTool {
                 throw new Error(data.error.message);
             }
             
+            // Lấy thông tin chi tiết channel để có custom URL thực tế
+            const channelIds = [...new Set(data.items.map(video => video.snippet.channelId))];
+            const channelDetails = await this.getChannelDetails(channelIds);
+            
             const newResults = data.items.map((video, index) => {
                 const searchItem = videoItems[index];
                 const originalDuration = this.formatDuration(video.contentDetails.duration, video.liveStreamingDetails);
@@ -374,6 +370,18 @@ class YouTubeSearchTool {
                     viewCount = this.formatNumber(video.statistics.viewCount) + ' lượt xem';
                 }
                 
+                // Lấy URL channel thực tế từ channel details
+                const channelInfo = channelDetails.find(ch => ch.id === video.snippet.channelId);
+                let channelUrl = `https://www.youtube.com/channel/${video.snippet.channelId}`; // Fallback
+                
+                if (channelInfo && channelInfo.snippet.customUrl) {
+                    // Nếu có custom URL, sử dụng format /@customUrl
+                    channelUrl = `https://www.youtube.com/@${channelInfo.snippet.customUrl.replace('@', '')}`;
+                } else if (channelInfo && channelInfo.snippet.handle) {
+                    // Nếu có handle, sử dụng handle
+                    channelUrl = `https://www.youtube.com/@${channelInfo.snippet.handle.replace('@', '')}`;
+                }
+                
                 return {
                     keyword: keyword,
                     title: video.snippet.title,
@@ -381,11 +389,11 @@ class YouTubeSearchTool {
                     videoUrl: `https://www.youtube.com/watch?v=${video.id}`,
                     channelName: video.snippet.channelTitle,
                     channelId: video.snippet.channelId,
-                    channelUrl: `https://www.youtube.com/@${this.createAtUsername(video.snippet.channelTitle)}`, // Hiển thị @username
+                    channelUrl: channelUrl, // URL thực tế của channel
                     duration: originalDuration,
                     originalDuration: originalDuration,
                     viewCount: viewCount,
-                    summary: this.createSummary(video.snippet.channelTitle, video.snippet.channelId, video.snippet.title, video.id, originalDuration, keyword, '')
+                    summary: this.createSummary(video.snippet.channelTitle, video.snippet.channelId, video.snippet.title, video.id, originalDuration, keyword, '', channelUrl) // Truyền channelUrl vào
                 };
             });
             
@@ -394,6 +402,27 @@ class YouTubeSearchTool {
         } catch (error) {
             console.error('Video details error:', error);
             throw error;
+        }
+    }
+    
+    // Thêm method mới để lấy thông tin channel chi tiết
+    async getChannelDetails(channelIds) {
+        try {
+            if (channelIds.length === 0) return [];
+            
+            const channelIdsString = channelIds.join(',');
+            const response = await fetch(`${this.baseUrl}/channels?part=snippet&id=${channelIdsString}&key=${this.getCurrentApiKey()}`);
+            const data = await response.json();
+            
+            if (data.error) {
+                console.warn('Error getting channel details:', data.error.message);
+                return [];
+            }
+            
+            return data.items || [];
+        } catch (error) {
+            console.warn('Error fetching channel details:', error);
+            return [];
         }
     }
     
@@ -436,15 +465,20 @@ class YouTubeSearchTool {
         }
     }
     
-    createSummary(channelName, channelId, title, videoId, duration, keyword, customValue = '') {
+    createSummary(channelName, channelId, title, videoId, duration, keyword, customValue = '', channelUrl = null) {
         // Lấy danh sách cột được chọn (nếu có checkbox)
         const selectedColumns = this.getSelectedColumnsForSummary();
         const parts = [];
         
-        // Map dữ liệu với format cũ (sử dụng channel URL cũ)
+        // Sử dụng channelUrl được truyền vào, hoặc fallback
+        if (!channelUrl) {
+            channelUrl = `https://www.youtube.com/channel/${channelId}`;
+        }
+        
+        // Map dữ liệu với custom URL thực tế
         const dataMap = {
             channelName: channelName,
-            channelUrl: `https://www.youtube.com/channel/${channelId}`, // Format cũ /channel/UCxxxx
+            channelUrl: channelUrl, // Sử dụng custom URL thực tế
             title: title,
             videoUrl: `https://www.youtube.com/watch?v=${videoId}&ab_channel=${channelId}`,
             duration: duration,
@@ -463,9 +497,9 @@ class YouTubeSearchTool {
                 }
             });
         } else {
-            // Format mặc định như cũ: channelName---channelUrl---title---videoUrl---duration---keyword
+            // Format mặc định: channelName---channelUrl---title---videoUrl---duration---keyword
             parts.push(channelName);
-            parts.push(`https://www.youtube.com/channel/${channelId}`);
+            parts.push(channelUrl); // Sử dụng custom URL thực tế
             parts.push(title);
             parts.push(`https://www.youtube.com/watch?v=${videoId}&ab_channel=${channelId}`);
             parts.push(duration);
@@ -581,7 +615,8 @@ class YouTubeSearchTool {
                 result.videoId,
                 finalDuration,
                 result.keyword,
-                customValue
+                customValue,
+                result.channelUrl // Truyền channelUrl từ result
             );
         });
         
@@ -756,7 +791,8 @@ class YouTubeSearchTool {
                     result.videoId,
                     finalDuration,
                     result.keyword,
-                    customValue
+                    customValue,
+                    result.channelUrl // Truyền channelUrl từ result
                 );
             });
             
@@ -1054,19 +1090,19 @@ function showNotification(message, duration = 2000) {
         existingNotification.remove();
     }
     
-    const notification = document.createElement('div');
+        const notification = document.createElement('div');
     notification.id = 'copyNotification';
     notification.textContent = message;
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: #4ecdc4;
-        color: white;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4ecdc4;
+            color: white;
         padding: 12px 20px;
         border-radius: 6px;
         z-index: 3000;
-        font-weight: bold;
+            font-weight: bold;
         box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         animation: slideIn 0.3s ease-out;
     `;
@@ -1081,9 +1117,9 @@ function showNotification(message, duration = 2000) {
     `;
     document.head.appendChild(style);
     
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
         if (notification.parentNode) {
             notification.style.animation = 'slideIn 0.3s ease-out reverse';
             setTimeout(() => {
