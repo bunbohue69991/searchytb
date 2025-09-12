@@ -1,8 +1,17 @@
 class YouTubeSearchTool {
     constructor() {
-        // Không còn sử dụng API key cố định
         this.baseUrl = 'https://www.googleapis.com/youtube/v3';
         this.searchResults = [];
+        
+        // Thêm biến cho comment pagination
+        this.currentVideoId = null;
+        this.nextPageToken = null;
+        this.isLoadingComments = false;
+        this.hasMoreComments = true;
+        
+        // Thêm biến cho comment management
+        this.targetCommentCount = 50; // Default số lượng comment muốn load
+        this.currentCommentCount = 0;
         
         this.initializeEventListeners();
         this.loadSavedApiKey();
@@ -64,6 +73,14 @@ class YouTubeSearchTool {
         }
     }
     
+    createAtUsername(channelName) {
+        // Chuyển tên kênh thành @username
+        return channelName
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '') // Chỉ giữ chữ và số
+            .replace(/\s+/g, ''); // Xóa khoảng trắng
+    }
+    
     initializeEventListeners() {
         document.getElementById('searchBtn').addEventListener('click', () => this.searchVideos());
         document.getElementById('downloadBtn').addEventListener('click', () => this.downloadResults());
@@ -95,24 +112,41 @@ class YouTubeSearchTool {
             }
         });
         
-        // Format checkbox events
-        document.getElementById('addChannelName').addEventListener('change', (e) => {
-            if (e.target.checked) {
-                this.updateTickOrder('channelName');
-            } else {
-                this.removeFromTickOrder('channelName');
+        // Column checkbox events - kiểm tra xem element có tồn tại không
+        ['includeKeyword', 'includeTitle', 'includeVideoId', 'includeVideoUrl', 'includeChannelName', 'includeChannelUrl', 'includeDuration'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('change', () => {
+                    this.updateResultsIfAvailable();
+                });
             }
-            this.updateResultsIfAvailable();
         });
         
-        document.getElementById('addVideoTitle').addEventListener('change', (e) => {
-            if (e.target.checked) {
-                this.updateTickOrder('videoTitle');
-            } else {
-                this.removeFromTickOrder('videoTitle');
-            }
-            this.updateResultsIfAvailable();
-        });
+        // Format checkbox events
+        const addChannelName = document.getElementById('addChannelName');
+        const addVideoTitle = document.getElementById('addVideoTitle');
+        
+        if (addChannelName) {
+            addChannelName.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.updateTickOrder('channelName');
+                } else {
+                    this.removeFromTickOrder('channelName');
+                }
+                this.updateResultsIfAvailable();
+            });
+        }
+        
+        if (addVideoTitle) {
+            addVideoTitle.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.updateTickOrder('videoTitle');
+                } else {
+                    this.removeFromTickOrder('videoTitle');
+                }
+                this.updateResultsIfAvailable();
+            });
+        }
     }
     
     async searchVideos() {
@@ -293,29 +327,13 @@ class YouTubeSearchTool {
         return filters;
     }
     
-    async searchSingleKeywordWithRetry(keyword, videoCount, filters, retryCount = 0) {
-        const maxRetries = 1; // Only retry once for now, as we are using a single API key
-        
-        try {
-            await this.searchSingleKeyword(keyword, videoCount, filters);
-        } catch (error) {
-            if (error.message.includes('quota') && retryCount < maxRetries) {
-                console.log(`API key hết quota, chuyển sang API key tiếp theo...`);
-                // No next API key to switch to, as we are using a single key
-                throw new Error('Tất cả API key đã hết quota. Vui lòng thử lại sau.');
-            } else {
-                throw error;
-            }
-        }
-    }
-    
     async searchSingleKeyword(keyword, videoCount, filters) {
         const searchParams = {
             part: 'snippet',
             q: keyword,
             type: 'video',
             maxResults: Math.min(videoCount, 50),
-            key: this.getCurrentApiKey(), // Sử dụng API key từ input
+            key: this.getCurrentApiKey(),
             ...filters
         };
         
@@ -331,26 +349,11 @@ class YouTubeSearchTool {
         }
     }
     
-    async getVideoDetailsWithRetry(videoItems, keyword, retryCount = 0) {
-        const maxRetries = 1; // Only retry once for now, as we are using a single API key
-        
-        try {
-            await this.getVideoDetails(videoItems, keyword);
-        } catch (error) {
-            if (error.message.includes('quota') && retryCount < maxRetries) {
-                console.log(`API key hết quota trong getVideoDetails, chuyển sang API key tiếp theo...`);
-                // No next API key to switch to, as we are using a single key
-                throw new Error('Tất cả API key đã hết quota. Vui lòng thử lại sau.');
-            } else {
-                throw error;
-            }
-        }
-    }
-    
     async getVideoDetails(videoItems, keyword) {
         try {
             const videoIds = videoItems.map(item => item.id.videoId).join(',');
-            const response = await fetch(`${this.baseUrl}/videos?part=snippet,contentDetails,liveStreamingDetails&id=${videoIds}&key=${this.getCurrentApiKey()}`);
+            // Thêm statistics để lấy lượt xem
+            const response = await fetch(`${this.baseUrl}/videos?part=snippet,contentDetails,liveStreamingDetails,statistics&id=${videoIds}&key=${this.getCurrentApiKey()}`);
             const data = await response.json();
             
             if (data.error) {
@@ -361,15 +364,27 @@ class YouTubeSearchTool {
                 const searchItem = videoItems[index];
                 const originalDuration = this.formatDuration(video.contentDetails.duration, video.liveStreamingDetails);
                 
+                // Xử lý lượt xem
+                let viewCount = 'N/A';
+                if (video.liveStreamingDetails && video.liveStreamingDetails.concurrentViewers) {
+                    // Video live - hiển thị số người xem hiện tại
+                    viewCount = this.formatNumber(video.liveStreamingDetails.concurrentViewers) + ' đang xem';
+                } else if (video.statistics && video.statistics.viewCount) {
+                    // Video thường - hiển thị tổng lượt xem
+                    viewCount = this.formatNumber(video.statistics.viewCount) + ' lượt xem';
+                }
+                
                 return {
                     keyword: keyword,
                     title: video.snippet.title,
                     videoId: video.id,
                     videoUrl: `https://www.youtube.com/watch?v=${video.id}`,
                     channelName: video.snippet.channelTitle,
-                    channelUrl: `https://www.youtube.com/channel/${video.snippet.channelId}`,
+                    channelId: video.snippet.channelId,
+                    channelUrl: `https://www.youtube.com/@${this.createAtUsername(video.snippet.channelTitle)}`, // Hiển thị @username
                     duration: originalDuration,
                     originalDuration: originalDuration,
+                    viewCount: viewCount,
                     summary: this.createSummary(video.snippet.channelTitle, video.snippet.channelId, video.snippet.title, video.id, originalDuration, keyword, '')
                 };
             });
@@ -380,6 +395,11 @@ class YouTubeSearchTool {
             console.error('Video details error:', error);
             throw error;
         }
+    }
+    
+    formatNumber(num) {
+        // Format số với dấu phẩy
+        return parseInt(num).toLocaleString('vi-VN');
     }
     
     formatDuration(duration, liveStreamingDetails = null) {
@@ -417,8 +437,42 @@ class YouTubeSearchTool {
     }
     
     createSummary(channelName, channelId, title, videoId, duration, keyword, customValue = '') {
-        // Format cơ bản
-        let summary = `${channelName}---https://www.youtube.com/channel/${channelId}---${title}---https://www.youtube.com/watch?v=${videoId}&ab_channel=${channelId}---${duration}---${keyword}`;
+        // Lấy danh sách cột được chọn (nếu có checkbox)
+        const selectedColumns = this.getSelectedColumnsForSummary();
+        const parts = [];
+        
+        // Map dữ liệu với format cũ (sử dụng channel URL cũ)
+        const dataMap = {
+            channelName: channelName,
+            channelUrl: `https://www.youtube.com/channel/${channelId}`, // Format cũ /channel/UCxxxx
+            title: title,
+            videoUrl: `https://www.youtube.com/watch?v=${videoId}&ab_channel=${channelId}`,
+            duration: duration,
+            keyword: keyword,
+            videoId: videoId
+        };
+        
+        // Nếu có checkbox, thêm các cột được chọn theo thứ tự
+        if (selectedColumns.length > 0) {
+            // Thứ tự cố định theo format cũ
+            const defaultOrder = ['channelName', 'channelUrl', 'title', 'videoUrl', 'duration', 'keyword'];
+            
+            defaultOrder.forEach(column => {
+                if (selectedColumns.includes(column) && dataMap[column]) {
+                    parts.push(dataMap[column]);
+                }
+            });
+        } else {
+            // Format mặc định như cũ: channelName---channelUrl---title---videoUrl---duration---keyword
+            parts.push(channelName);
+            parts.push(`https://www.youtube.com/channel/${channelId}`);
+            parts.push(title);
+            parts.push(`https://www.youtube.com/watch?v=${videoId}&ab_channel=${channelId}`);
+            parts.push(duration);
+            parts.push(keyword);
+        }
+        
+        let summary = parts.join('---');
         
         // Thêm các phần tùy chọn vào cuối
         const additions = this.getFormatAdditions(channelName, title);
@@ -432,6 +486,30 @@ class YouTubeSearchTool {
         }
         
         return summary;
+    }
+    
+    getSelectedColumnsForSummary() {
+        const columns = [];
+        
+        // Thứ tự cố định theo format cũ
+        const columnOrder = [
+            { id: 'includeChannelName', key: 'channelName' },
+            { id: 'includeChannelUrl', key: 'channelUrl' },
+            { id: 'includeTitle', key: 'title' },
+            { id: 'includeVideoUrl', key: 'videoUrl' },
+            { id: 'includeDuration', key: 'duration' },
+            { id: 'includeKeyword', key: 'keyword' },
+            { id: 'includeVideoId', key: 'videoId' }
+        ];
+        
+        columnOrder.forEach(col => {
+            const element = document.getElementById(col.id);
+            if (element && element.checked) {
+                columns.push(col.key);
+            }
+        });
+        
+        return columns;
     }
     
     getFormatAdditions(channelName, videoTitle) {
@@ -498,7 +576,7 @@ class YouTubeSearchTool {
             const finalDuration = customDuration || result.originalDuration;
             result.summary = this.createSummary(
                 result.channelName,
-                result.channelUrl.split('/').pop(),
+                result.channelId,
                 result.title,
                 result.videoId,
                 finalDuration,
@@ -512,8 +590,8 @@ class YouTubeSearchTool {
         
         // Thông báo thành công
         const notification = document.createElement('div');
-        const addChannelName = document.getElementById('addChannelName').checked;
-        const addVideoTitle = document.getElementById('addVideoTitle').checked;
+        const addChannelName = document.getElementById('addChannelName')?.checked || false;
+        const addVideoTitle = document.getElementById('addVideoTitle')?.checked || false;
         
         let formatInfo = '';
         if (addChannelName && addVideoTitle) {
@@ -557,6 +635,12 @@ class YouTubeSearchTool {
                 <td>${result.channelName}</td>
                 <td><a href="${result.channelUrl}" target="_blank">${result.channelUrl}</a></td>
                 <td>${result.duration}</td>
+                <td>${result.viewCount}</td>
+                <td>
+                    <button class="comment-btn" onclick="loadVideoComments('${result.videoId}', '${result.title.replace(/'/g, "\\'")}', '${result.channelName.replace(/'/g, "\\'")}')">
+                        💬 Xem
+                    </button>
+                </td>
                 <td>
                     <span class="summary-text">${result.summary}</span>
                     <button class="copy-btn" onclick="copyToClipboard('${result.summary.replace(/'/g, "\\'")}')">Copy</button>
@@ -574,7 +658,7 @@ class YouTubeSearchTool {
             return;
         }
         
-        // Tạo nội dung để copy tất cả 8 cột
+        // Tạo nội dung để copy tất cả 9 cột
         const allData = this.searchResults.map(result => [
             result.keyword,
             result.title,
@@ -583,6 +667,8 @@ class YouTubeSearchTool {
             result.channelName,
             result.channelUrl,
             result.duration,
+            result.viewCount,
+            'Comment', // Placeholder cho cột comment
             result.summary
         ]);
         
@@ -655,6 +741,29 @@ class YouTubeSearchTool {
         });
     }
     
+    updateResultsIfAvailable() {
+        // Tự động cập nhật kết quả nếu đã có dữ liệu
+        if (this.searchResults.length > 0) {
+            const customDuration = document.getElementById('customDuration').value.trim();
+            const customValue = document.getElementById('customValue').value.trim();
+            
+            this.searchResults.forEach(result => {
+                const finalDuration = customDuration || result.originalDuration;
+                result.summary = this.createSummary(
+                    result.channelName,
+                    result.channelId,
+                    result.title,
+                    result.videoId,
+                    finalDuration,
+                    result.keyword,
+                    customValue
+                );
+            });
+            
+            this.displayResults();
+        }
+    }
+    
     showLoading() {
         document.getElementById('loading').classList.remove('hidden');
         document.getElementById('results').classList.add('hidden');
@@ -674,59 +783,427 @@ class YouTubeSearchTool {
         document.getElementById('error').classList.add('hidden');
     }
 
-    updateResultsIfAvailable() {
-        // Tự động cập nhật kết quả nếu đã có dữ liệu
-        if (this.searchResults.length > 0) {
-            const customDuration = document.getElementById('customDuration').value.trim();
-            const customValue = document.getElementById('customValue').value.trim();
+    // Thêm method mới để load comments
+    async loadComments(videoId, pageToken = null) {
+        try {
+            // Load nhiều hơn mỗi lần để đạt target nhanh hơn
+            const batchSize = Math.min(50, Math.max(20, this.targetCommentCount - this.currentCommentCount));
             
-            this.searchResults.forEach(result => {
-                const finalDuration = customDuration || result.originalDuration;
-                result.summary = this.createSummary(
-                    result.channelName,
-                    result.channelUrl.split('/').pop(),
-                    result.title,
-                    result.videoId,
-                    finalDuration,
-                    result.keyword,
-                    customValue
-                );
-            });
+            let url = `${this.baseUrl}/commentThreads?part=snippet&videoId=${videoId}&maxResults=${batchSize}&order=relevance&key=${this.getCurrentApiKey()}`;
             
-            this.displayResults();
+            if (pageToken) {
+                url += `&pageToken=${pageToken}`;
+            }
+            
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            if (data.error) {
+                throw new Error(data.error.message);
+            }
+            
+            return {
+                items: data.items || [],
+                nextPageToken: data.nextPageToken || null,
+                totalResults: data.pageInfo?.totalResults || 0
+            };
+        } catch (error) {
+            console.error('Error loading comments:', error);
+            throw error;
         }
+    }
+
+    // Method mới để load số lượng comment cụ thể
+    async loadSpecificAmountComments(targetCount) {
+        if (!this.currentVideoId || this.isLoadingComments) {
+            return;
+        }
+
+        this.isLoadingComments = true;
+        this.targetCommentCount = targetCount || parseInt(document.getElementById('commentLimit').value) || 50;
+        this.currentCommentCount = 0;
+        
+        // Reset comment list
+        document.getElementById('commentList').innerHTML = '';
+        document.getElementById('commentLoading').classList.remove('hidden');
+        document.getElementById('commentError').classList.add('hidden');
+        
+        // Reset pagination
+        this.nextPageToken = null;
+        this.hasMoreComments = true;
+
+        try {
+            while (this.currentCommentCount < this.targetCommentCount && this.hasMoreComments) {
+                const result = await this.loadComments(this.currentVideoId, this.nextPageToken);
+                
+                if (result.items.length === 0) {
+                    this.hasMoreComments = false;
+                    break;
+                }
+                
+                // Tính toán số comment cần thêm
+                const remainingNeeded = this.targetCommentCount - this.currentCommentCount;
+                const commentsToAdd = result.items.slice(0, remainingNeeded);
+                
+                // Append comments
+                this.appendCommentsToList(commentsToAdd);
+                this.currentCommentCount += commentsToAdd.length;
+                
+                // Update pagination
+                this.nextPageToken = result.nextPageToken;
+                this.hasMoreComments = !!result.nextPageToken && this.currentCommentCount < this.targetCommentCount;
+                
+                // Small delay để tránh rate limit
+                if (this.hasMoreComments && this.currentCommentCount < this.targetCommentCount) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+            }
+            
+            // Update UI
+            document.getElementById('commentLoading').classList.add('hidden');
+            
+            if (this.currentCommentCount === 0) {
+                document.getElementById('commentList').innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Không có comment nào</p>';
+            } else if (!this.hasMoreComments && this.currentCommentCount < this.targetCommentCount) {
+                this.showEndOfComments(`Đã tải hết ${this.currentCommentCount} comment có sẵn`);
+            }
+            
+        } catch (error) {
+            document.getElementById('commentLoading').classList.add('hidden');
+            this.showCommentError('Không thể tải comment: ' + error.message);
+            console.error('Error:', error);
+        } finally {
+            this.isLoadingComments = false;
+        }
+    }
+
+    appendCommentsToList(comments) {
+        const commentList = document.getElementById('commentList');
+        
+        comments.forEach((commentData, index) => {
+            const comment = commentData.snippet.topLevelComment.snippet;
+            const commentElement = document.createElement('div');
+            commentElement.className = 'comment-item';
+            commentElement.setAttribute('data-comment-index', this.getAllCommentsCount() + index);
+            
+            // Clean comment text (remove newlines và extra spaces)
+            const cleanText = comment.textDisplay.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+            
+            commentElement.innerHTML = `
+                <img src="${comment.authorProfileImageUrl}" alt="${comment.authorDisplayName}" class="comment-avatar">
+                <div class="comment-content">
+                    <div class="comment-author">${comment.authorDisplayName}</div>
+                    <div class="comment-text" title="${cleanText}">${cleanText}</div>
+                    <div class="comment-meta">
+                        <div class="comment-likes">👍 ${comment.likeCount}</div>
+                        <div class="comment-date">${new Date(comment.publishedAt).toLocaleDateString('vi-VN')}</div>
+                        ${comment.totalReplyCount > 0 ? `<div class="comment-replies">💬 ${comment.totalReplyCount}</div>` : ''}
+                    </div>
+                </div>
+                <div class="comment-actions">
+                    <button class="comment-copy-btn" onclick="copyComment('${cleanText.replace(/'/g, "\\'")}')">Copy</button>
+                </div>
+            `;
+            
+            commentList.appendChild(commentElement);
+        });
+        
+        // Update copy all button state
+        this.updateCopyAllButton();
+    }
+
+    getAllCommentsCount() {
+        return document.querySelectorAll('.comment-item').length;
+    }
+
+    updateCopyAllButton() {
+        const copyAllBtn = document.getElementById('copyAllCommentsBtn');
+        const commentCount = this.getAllCommentsCount();
+        
+        if (copyAllBtn) {
+            copyAllBtn.disabled = commentCount === 0;
+            copyAllBtn.textContent = `📋 Copy All (${commentCount})`;
+        }
+    }
+
+    getAllCommentTexts() {
+        const comments = [];
+        document.querySelectorAll('.comment-item .comment-text').forEach(textElement => {
+            const text = textElement.textContent.trim();
+            if (text) {
+                comments.push(text);
+            }
+        });
+        return comments;
+    }
+
+    showInfiniteLoading() {
+        let loadingDiv = document.getElementById('infiniteLoading');
+        if (!loadingDiv) {
+            loadingDiv = document.createElement('div');
+            loadingDiv.id = 'infiniteLoading';
+            loadingDiv.className = 'infinite-loading';
+            loadingDiv.innerHTML = `
+                <div class="spinner"></div>
+                <span>Đang tải thêm comment...</span>
+            `;
+            document.getElementById('commentList').appendChild(loadingDiv);
+        }
+        loadingDiv.classList.remove('hidden');
+    }
+
+    hideInfiniteLoading() {
+        const loadingDiv = document.getElementById('infiniteLoading');
+        if (loadingDiv) {
+            loadingDiv.classList.add('hidden');
+        }
+    }
+
+    showEndOfComments(message = '🏁 Đã hiển thị hết comment') {
+        let endDiv = document.getElementById('endOfComments');
+        if (!endDiv) {
+            endDiv = document.createElement('div');
+            endDiv.id = 'endOfComments';
+            endDiv.className = 'end-of-comments';
+            document.getElementById('commentList').appendChild(endDiv);
+        }
+        endDiv.innerHTML = message;
+        endDiv.classList.remove('hidden');
+    }
+
+    showCommentError(message) {
+        const errorDiv = document.getElementById('commentError');
+        errorDiv.querySelector('p').textContent = message;
+        errorDiv.classList.remove('hidden');
     }
 }
 
-// Hàm copy to clipboard
-function copyToClipboard(text) {
+// Global functions
+function copyComment(text) {
     navigator.clipboard.writeText(text).then(() => {
-        // Tạo thông báo tạm thời
-        const notification = document.createElement('div');
-        notification.textContent = 'Đã copy!';
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #4ecdc4;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            z-index: 1000;
-            font-weight: bold;
-        `;
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            document.body.removeChild(notification);
-        }, 2000);
+        showNotification('Đã copy comment!');
     }).catch(err => {
         console.error('Copy failed:', err);
         alert('Không thể copy. Vui lòng copy thủ công.');
     });
 }
 
-// Khởi tạo ứng dụng khi trang được tải
+function copyAllComments() {
+    const toolInstance = window.youtubeSearchTool;
+    const comments = toolInstance.getAllCommentTexts();
+    
+    if (comments.length === 0) {
+        alert('Không có comment nào để copy!');
+        return;
+    }
+    
+    // Chỉ copy text comment, mỗi comment một dòng
+    const textToCopy = comments.join('\n');
+    
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        showNotification(`Đã copy ${comments.length} comments!`, 3000);
+    }).catch(err => {
+        console.error('Copy failed:', err);
+        
+        // Fallback: tạo textarea để user có thể copy manual
+        const textarea = document.createElement('textarea');
+        textarea.value = textToCopy;
+        textarea.style.position = 'fixed';
+        textarea.style.top = '0';
+        textarea.style.left = '0';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        
+        try {
+            document.execCommand('copy');
+            showNotification(`Đã copy ${comments.length} comments!`, 3000);
+        } catch (err) {
+            alert('Không thể copy tự động. Vui lòng copy thủ công.');
+        }
+        
+        document.body.removeChild(textarea);
+    });
+}
+
+function loadSpecificAmountComments() {
+    const loadBtn = document.getElementById('loadCommentsBtn');
+    const input = document.getElementById('commentLimit');
+    const targetCount = parseInt(input.value);
+    
+    if (!targetCount || targetCount < 10 || targetCount > 500) {
+        alert('Vui lòng nhập số từ 10 đến 500');
+        return;
+    }
+    
+    // Update UI
+    loadBtn.classList.add('loading');
+    loadBtn.disabled = true;
+    
+    const toolInstance = window.youtubeSearchTool;
+    toolInstance.loadSpecificAmountComments(targetCount).finally(() => {
+        loadBtn.classList.remove('loading');
+        loadBtn.disabled = false;
+    });
+}
+
+function showNotification(message, duration = 2000) {
+    // Remove existing notification
+    const existingNotification = document.getElementById('copyNotification');
+    if (existingNotification) {
+        existingNotification.remove();
+    }
+    
+    const notification = document.createElement('div');
+    notification.id = 'copyNotification';
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #4ecdc4;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 6px;
+        z-index: 3000;
+        font-weight: bold;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        animation: slideIn 0.3s ease-out;
+    `;
+    
+    // Add animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.style.animation = 'slideIn 0.3s ease-out reverse';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 300);
+        }
+    }, duration);
+}
+
+// Global functions cho modal
+async function loadVideoComments(videoId, title, channelName) {
+    // Hiển thị modal
+    document.getElementById('commentModal').classList.remove('hidden');
+    
+    // Set video info
+    document.getElementById('commentVideoTitle').textContent = title;
+    document.getElementById('commentVideoChannel').textContent = channelName;
+    
+    // Reset states
+    document.getElementById('commentLoading').classList.remove('hidden');
+    document.getElementById('commentList').innerHTML = '';
+    document.getElementById('commentError').classList.add('hidden');
+    
+    // Reset copy all button
+    const copyAllBtn = document.getElementById('copyAllCommentsBtn');
+    if (copyAllBtn) {
+        copyAllBtn.disabled = true;
+        copyAllBtn.textContent = '📋 Copy All (0)';
+    }
+    
+    // Reset load button
+    const loadBtn = document.getElementById('loadCommentsBtn');
+    if (loadBtn) {
+        loadBtn.disabled = false;
+        loadBtn.classList.remove('loading');
+    }
+    
+    // Set up tool instance
+    const toolInstance = window.youtubeSearchTool;
+    toolInstance.currentVideoId = videoId;
+    toolInstance.nextPageToken = null;
+    toolInstance.isLoadingComments = false;
+    toolInstance.hasMoreComments = true;
+    toolInstance.currentCommentCount = 0;
+    
+    // Load initial amount
+    const initialCount = parseInt(document.getElementById('commentLimit').value) || 50;
+    
+    try {
+        await toolInstance.loadSpecificAmountComments(initialCount);
+    } catch (error) {
+        document.getElementById('commentLoading').classList.add('hidden');
+        document.getElementById('commentError').classList.remove('hidden');
+        console.error('Error:', error);
+    }
+}
+
+function setupInfiniteScroll() {
+    const commentList = document.getElementById('commentList');
+    
+    // Remove existing scroll listener
+    commentList.removeEventListener('scroll', handleCommentScroll);
+    
+    // Add new scroll listener
+    commentList.addEventListener('scroll', handleCommentScroll);
+}
+
+function handleCommentScroll() {
+    const commentList = document.getElementById('commentList');
+    const toolInstance = window.youtubeSearchTool;
+    
+    // Check if user scrolled near bottom (within 50px)
+    if (commentList.scrollTop + commentList.clientHeight >= commentList.scrollHeight - 50) {
+        if (!toolInstance.isLoadingComments && toolInstance.hasMoreComments) {
+            toolInstance.loadMoreComments();
+        }
+    }
+}
+
+function closeCommentModal() {
+    document.getElementById('commentModal').classList.add('hidden');
+    
+    // Clean up scroll listener
+    const commentList = document.getElementById('commentList');
+    if (commentList) {
+        commentList.removeEventListener('scroll', handleCommentScroll);
+    }
+    
+    // Reset state
+    const toolInstance = window.youtubeSearchTool;
+    if (toolInstance) {
+        toolInstance.currentVideoId = null;
+        toolInstance.nextPageToken = null;
+        toolInstance.isLoadingComments = false;
+        toolInstance.hasMoreComments = true;
+        toolInstance.currentCommentCount = 0; // Reset comment count
+    }
+}
+
+// Close modal khi click outside
+window.onclick = function(event) {
+    const modal = document.getElementById('commentModal');
+    if (event.target == modal) {
+        closeCommentModal();
+    }
+}
+
+// Keyboard shortcut để đóng modal (ESC)
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const modal = document.getElementById('commentModal');
+        if (!modal.classList.contains('hidden')) {
+            closeCommentModal();
+        }
+    }
+});
+
+// Cập nhật phần khởi tạo
 document.addEventListener('DOMContentLoaded', () => {
-    new YouTubeSearchTool();
+    window.youtubeSearchTool = new YouTubeSearchTool();
 });

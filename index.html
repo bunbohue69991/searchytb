@@ -167,14 +167,16 @@ sleep music, nature sounds" class="search-textarea" rows="3"></textarea>
                 <table>
                     <thead>
                         <tr>
-                            <th>Cột 1<br>Từ khóa</th>
-                            <th>Cột 2<br>Tiêu đề video</th>
-                            <th>Cột 3<br>Link video (ID)</th>
-                            <th>Cột 4<br>Link video (Full)</th>
-                            <th>Cột 5<br>Tên kênh</th>
-                            <th>Cột 6<br>Link kênh</th>
-                            <th>Cột 7<br>Thời lượng</th>
-                            <th>Cột 8<br>Tổng hợp</th>
+                            <th>Cột 1<br>Từ khóa<br><input type="checkbox" id="includeKeyword" class="column-checkbox" checked></th>
+                            <th>Cột 2<br>Tiêu đề video<br><input type="checkbox" id="includeTitle" class="column-checkbox" checked></th>
+                            <th>Cột 3<br>Link video (ID)<br><input type="checkbox" id="includeVideoId" class="column-checkbox" checked></th>
+                            <th>Cột 4<br>Link video (Full)<br><input type="checkbox" id="includeVideoUrl" class="column-checkbox" checked></th>
+                            <th>Cột 5<br>Tên kênh<br><input type="checkbox" id="includeChannelName" class="column-checkbox" checked></th>
+                            <th>Cột 6<br>Link kênh<br><input type="checkbox" id="includeChannelUrl" class="column-checkbox" checked></th>
+                            <th>Cột 7<br>Thời lượng<br><input type="checkbox" id="includeDuration" class="column-checkbox" checked></th>
+                            <th>Cột 8<br>Lượt xem</th>
+                            <th>Cột 9<br>Comment</th>
+                            <th>Cột 10<br>Tổng hợp</th>
                         </tr>
                     </thead>
                     <tbody id="resultsBody">
@@ -184,6 +186,40 @@ sleep music, nature sounds" class="search-textarea" rows="3"></textarea>
             
             <div id="error" class="error hidden">
                 <p>❌ Có lỗi xảy ra khi tìm kiếm. Vui lòng thử lại.</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal hiển thị comment -->
+    <div id="commentModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>💬 Comments</h3>
+                <div class="modal-header-actions">
+                    <div class="comment-controls">
+                        <label for="commentLimit">Hiển thị:</label>
+                        <input type="number" id="commentLimit" value="50" min="10" max="500" step="10" class="comment-limit-input">
+                        <button id="loadCommentsBtn" class="load-comments-btn" onclick="loadSpecificAmountComments()">🔄 Load</button>
+                    </div>
+                    <button id="copyAllCommentsBtn" class="copy-all-btn" onclick="copyAllComments()">📋 Copy All (0)</button>
+                    <span class="close-btn" onclick="closeCommentModal()">&times;</span>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div class="video-info">
+                    <h4 id="commentVideoTitle">Video Title</h4>
+                    <p id="commentVideoChannel">Channel Name</p>
+                </div>
+                <div id="commentLoading" class="comment-loading hidden">
+                    <div class="spinner"></div>
+                    <p>Đang tải comment...</p>
+                </div>
+                <div id="commentList" class="comment-list">
+                    <!-- Comments sẽ được load ở đây -->
+                </div>
+                <div id="commentError" class="comment-error hidden">
+                    <p>❌ Không thể tải comment</p>
+                </div>
             </div>
         </div>
     </div>

@@ -264,20 +264,26 @@ th {
     font-weight: bold;
     position: sticky;
     top: 0;
+    text-align: center;
+    vertical-align: middle;
+    padding: 15px 8px;
 }
 
 tr:hover {
     background-color: #f8f9fa;
 }
 
-td:nth-child(1) { width: 8%; }
-td:nth-child(2) { width: 25%; }
-td:nth-child(3) { width: 10%; }
-td:nth-child(4) { width: 15%; }
-td:nth-child(5) { width: 12%; }
-td:nth-child(6) { width: 15%; }
-td:nth-child(7) { width: 8%; }
-td:nth-child(8) { width: 25%; }
+/* Điều chỉnh width cột cho 10 cột */
+td:nth-child(1) { width: 6%; }
+td:nth-child(2) { width: 18%; }
+td:nth-child(3) { width: 7%; }
+td:nth-child(4) { width: 11%; }
+td:nth-child(5) { width: 8%; }
+td:nth-child(6) { width: 10%; }
+td:nth-child(7) { width: 6%; }
+td:nth-child(8) { width: 7%; }
+td:nth-child(9) { width: 7%; }
+td:nth-child(10) { width: 20%; }
 
 .copy-btn {
     background: #4ecdc4;
@@ -409,6 +415,368 @@ td:nth-child(8) { width: 25%; }
     border: 1px solid #ddd;
 }
 
+.column-checkbox {
+    margin: 5px auto;
+    display: block;
+    transform: scale(1.2);
+    cursor: pointer;
+}
+
+/* Comment button styling */
+.comment-btn {
+    background: linear-gradient(45deg, #ff9a56, #ff6b6b);
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.comment-btn:hover {
+    background: linear-gradient(45deg, #ff8a46, #ff5b5b);
+    transform: translateY(-1px);
+}
+
+.comment-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Modal styling */
+.modal {
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.5);
+    animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 0;
+    border-radius: 10px;
+    width: 80%;
+    max-width: 800px;
+    max-height: 80vh;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    animation: slideIn 0.3s;
+}
+
+@keyframes slideIn {
+    from { transform: translateY(-50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* Cập nhật modal header */
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    color: white;
+    border-radius: 10px 10px 0 0;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.modal-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.comment-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.comment-controls label {
+    font-size: 12px;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.comment-limit-input {
+    width: 60px;
+    padding: 4px 6px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.9);
+    color: #333;
+    font-size: 12px;
+    text-align: center;
+}
+
+.comment-limit-input:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.6);
+    background: white;
+}
+
+.load-comments-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    transition: all 0.3s;
+    white-space: nowrap;
+}
+
+.load-comments-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.load-comments-btn:disabled {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.1);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Loading state cho load button */
+.load-comments-btn.loading {
+    position: relative;
+    color: transparent;
+}
+
+.load-comments-btn.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 12px;
+    height: 12px;
+    margin: -6px 0 0 -6px;
+    border: 2px solid transparent;
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.copy-all-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.3s;
+    white-space: nowrap;
+}
+
+.copy-all-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-1px);
+}
+
+.copy-all-btn:disabled {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.1);
+    cursor: not-allowed;
+    transform: none;
+    opacity: 0.6;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.close-btn {
+    color: white;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.close-btn:hover {
+    color: #ffcccb;
+}
+
+.modal-body {
+    padding: 25px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.video-info {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.video-info h4 {
+    color: #333;
+    margin: 0 0 5px 0;
+    font-size: 16px;
+}
+
+.video-info p {
+    color: #666;
+    margin: 0;
+    font-size: 14px;
+}
+
+.comment-loading {
+    text-align: center;
+    padding: 40px;
+}
+
+/* Cập nhật comment list */
+.comment-list {
+    max-height: 400px;
+    overflow-y: auto;
+    position: relative;
+    padding: 5px;
+}
+
+.load-more-comments {
+    text-align: center;
+    padding: 20px;
+    border-top: 1px solid #eee;
+    margin-top: 10px;
+}
+
+.load-more-btn {
+    background: linear-gradient(45deg, #4ecdc4, #44a08d);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: transform 0.2s;
+}
+
+.load-more-btn:hover {
+    transform: translateY(-2px);
+}
+
+.load-more-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.infinite-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 15px;
+    color: #666;
+    font-size: 14px;
+}
+
+.infinite-loading .spinner {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+}
+
+.end-of-comments {
+    text-align: center;
+    padding: 15px;
+    color: #888;
+    font-style: italic;
+    border-top: 1px solid #eee;
+    margin-top: 10px;
+}
+
+/* Cập nhật comment item để hiển thị 1 dòng */
+.comment-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border-left: 3px solid #4ecdc4;
+    transition: background-color 0.2s;
+}
+
+.comment-item:hover {
+    background: #e9ecef;
+}
+
+.comment-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+.comment-content {
+    flex: 1;
+    min-width: 0; /* Cho phép flex item shrink */
+}
+
+.comment-author {
+    font-weight: bold;
+    color: #333;
+    font-size: 12px;
+    margin-bottom: 2px;
+}
+
+.comment-text {
+    color: #555;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+    line-height: 1.3;
+}
+
+.comment-meta {
+    display: flex;
+    gap: 10px;
+    font-size: 11px;
+    color: #888;
+}
+
+.comment-likes {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.comment-error {
+    text-align: center;
+    padding: 40px;
+    color: #c62828;
+}
+
+/* Responsive modal */
 @media (max-width: 768px) {
     .container {
         margin: 10px;
@@ -465,6 +833,65 @@ td:nth-child(8) { width: 25%; }
     .button-group {
         flex-direction: column;
         align-items: stretch;
+    }
+
+    .modal-content {
+        width: 95%;
+        margin: 10% auto;
+        max-height: 85vh;
+    }
+    
+    .modal-header {
+        padding: 15px 20px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    
+    .modal-header-actions {
+        flex-direction: column;
+        gap: 10px;
+        align-items: stretch;
+    }
+    
+    .comment-controls {
+        justify-content: center;
+    }
+    
+    .copy-all-btn,
+    .load-comments-btn {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+    
+    .comment-limit-input {
+        width: 50px;
+    }
+    
+    .modal-header h3 {
+        font-size: 18px;
+    }
+    
+    .modal-body {
+        padding: 20px;
+    }
+    
+    .comment-item {
+        padding: 6px 8px;
+    }
+    
+    .comment-avatar {
+        width: 25px;
+        height: 25px;
+        margin-right: 8px;
+    }
+    
+    .comment-text {
+        font-size: 12px;
+    }
+    
+    .comment-meta {
+        font-size: 10px;
     }
 }
 
@@ -620,5 +1047,33 @@ td:nth-child(8) { width: 25%; }
 
 .keyword-info strong {
     color: #4ecdc4;
+}
+
+.comment-actions {
+    display: flex;
+    gap: 5px;
+    margin-left: 10px;
+    flex-shrink: 0;
+}
+
+.comment-copy-btn {
+    background: #4ecdc4;
+    color: white;
+    border: none;
+    padding: 3px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.comment-item:hover .comment-copy-btn {
+    opacity: 1;
+}
+
+.comment-copy-btn:hover {
+    background: #44a08d;
 }
 
