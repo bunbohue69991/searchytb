@@ -15,9 +15,16 @@
             <h2>🔑 Cấu hình API Key</h2>
             <div class="api-key-input-group">
                 <div class="api-key-field">
-                    <label for="apiKeyInput">YouTube API Key:</label>
-                    <input type="password" id="apiKeyInput" placeholder="Nhập YouTube API Key của bạn..." class="api-key-input">
-                    <button id="toggleApiKey" class="toggle-btn" type="button">👁️</button>
+                    <label for="apiKeyInput">YouTube API Keys (mỗi key một dòng):</label>
+                    <textarea id="apiKeyInput" placeholder="Paste API keys vào đây, mỗi key một dòng...
+AIzaSyBjOpGZloLYRODbhLHmwBHAiDGW5gyL-kA
+AIzaSyBuaYNucuCrJrOzSEN2wIG2yGxUKVBKbvM" class="api-key-textarea" rows="3"></textarea>
+                    <div class="api-key-controls">
+                        <button id="addMoreKeys" class="add-btn">➕ Thêm key</button>
+                        <button id="validateAllKeys" class="validate-btn">🔍 Kiểm tra</button>
+                        <button id="clearAllKeys" class="clear-btn">🗑️ Xóa tất cả</button>
+                        <span class="api-key-count">0 key</span>
+                    </div>
                 </div>
                 <div class="api-key-info">
                     <p>💡 <strong>Hướng dẫn lấy API Key:</strong></p>
@@ -26,9 +33,17 @@
                         <li>Tạo project mới hoặc chọn project hiện có</li>
                         <li>Bật YouTube Data API v3</li>
                         <li>Tạo API Key trong phần Credentials</li>
-                        <li>Copy và dán vào ô trên</li>
+                        <li>Copy và dán vào ô trên (mỗi key một dòng)</li>
                     </ol>
-                    <p class="api-status" id="apiStatus">❌ Chưa nhập API Key</p>
+                    <div class="api-status-list">
+                        <h4>📊 Trạng thái API Keys:</h4>
+                        <div id="apiStatusList" class="status-list">
+                            <p class="no-keys">Chưa có API key nào</p>
+                        </div>
+                        <div class="current-key-info">
+                            <p><strong>🎯 Key đang sử dụng:</strong> <span id="currentKeyIndex">Chưa có</span></p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -168,8 +183,8 @@ sleep music, nature sounds" class="search-textarea" rows="3"></textarea>
                 <table>
                     <thead>
                         <tr>
-                            <th>STT</th>
-                            <th>☑️<br><input type="checkbox" id="selectAllCheckbox" class="select-all-checkbox"></th>
+                            <th class="stt-header" onclick="toggleSelectAll()">STT</th>
+                            <th class="select-all-header" onclick="toggleSelectAll()">☑️<br><input type="checkbox" id="selectAllCheckbox" class="select-all-checkbox"></th>
                             <th>Cột 1<br>Từ khóa<br><input type="checkbox" id="includeKeyword" class="column-checkbox" checked></th>
                             <th>Cột 2<br>Tiêu đề video<br><input type="checkbox" id="includeTitle" class="column-checkbox" checked></th>
                             <th>Cột 3<br>Link video (ID)<br><input type="checkbox" id="includeVideoId" class="column-checkbox" checked></th>

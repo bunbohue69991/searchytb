@@ -898,24 +898,33 @@ td:nth-child(12) { width: 18%; } /* Tổng hợp */
 }
 
 .api-key-section {
-    padding: 30px;
+    padding: 25px;
     background: #f8f9fa;
     border-bottom: 2px solid #e9ecef;
 }
 
 .api-key-input-group {
     display: flex;
-    gap: 30px;
+    gap: 25px;
     align-items: flex-start;
     flex-wrap: wrap;
 }
 
 .api-key-field {
-    flex: 1;
-    min-width: 300px;
+    flex: 2;
+    min-width: 400px;
     display: flex;
     flex-direction: column;
     gap: 10px;
+}
+
+.api-key-info {
+    flex: 1;
+    min-width: 350px;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 4px solid #4ecdc4;
 }
 
 .api-key-field label {
@@ -924,102 +933,200 @@ td:nth-child(12) { width: 18%; } /* Tổng hợp */
     font-size: 16px;
 }
 
-.api-key-input {
-    padding: 12px 45px 12px 15px;
+.api-key-textarea {
+    width: 100%;
+    padding: 12px 15px;
     border: 2px solid #e0e0e0;
     border-radius: 8px;
-    font-size: 14px;
+    font-size: 13px;
     font-family: monospace;
     transition: border-color 0.3s;
-    position: relative;
+    resize: vertical;
+    min-height: 80px;
+    max-height: 120px;
 }
 
-.api-key-input:focus {
+.api-key-textarea:focus {
     outline: none;
     border-color: #4ecdc4;
 }
 
-.api-key-field {
-    position: relative;
+.api-key-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
 }
 
-.toggle-btn {
-    position: absolute;
-    right: 10px;
-    top: 35px;
-    background: none;
+.validate-btn, .add-btn, .clear-btn {
+    padding: 6px 12px;
     border: none;
-    cursor: pointer;
-    font-size: 16px;
-    color: #666;
-    padding: 5px;
-}
-
-.toggle-btn:hover {
-    color: #4ecdc4;
-}
-
-.api-key-info {
-    flex: 1;
-    min-width: 300px;
-    background: white;
-    padding: 20px;
-    border-radius: 8px;
-    border-left: 4px solid #4ecdc4;
-}
-
-.api-key-info h3 {
-    color: #333;
-    margin-bottom: 10px;
-}
-
-.api-key-info ol {
-    margin: 10px 0;
-    padding-left: 20px;
-}
-
-.api-key-info li {
-    margin: 5px 0;
-    color: #555;
-}
-
-.api-key-info a {
-    color: #4ecdc4;
-    text-decoration: none;
-}
-
-.api-key-info a:hover {
-    text-decoration: underline;
-}
-
-.api-status {
-    font-weight: bold;
-    margin-top: 15px;
-    padding: 8px 12px;
     border-radius: 5px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    transition: all 0.3s;
+    white-space: nowrap;
 }
 
-.api-status.valid {
+.validate-btn {
+    background: linear-gradient(45deg, #4ecdc4, #44a08d);
+    color: white;
+}
+
+.validate-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(78, 205, 196, 0.3);
+}
+
+.add-btn {
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    color: white;
+}
+
+.add-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.clear-btn {
+    background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+    color: white;
+}
+
+.clear-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+}
+
+.api-key-count {
+    font-size: 11px;
+    color: #666;
+    font-weight: bold;
+    background: #f0f0f0;
+    padding: 3px 8px;
+    border-radius: 12px;
+    border: 1px solid #ddd;
+}
+
+.api-status-list {
+    margin-top: 15px;
+    background: #fafafa;
+    border-radius: 6px;
+    padding: 12px;
+    border: 1px solid #e0e0e0;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.api-status-list h4 {
+    margin: 0 0 8px 0;
+    color: #333;
+    font-size: 13px;
+}
+
+.status-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.api-key-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    margin-bottom: 4px;
+    border-radius: 4px;
+    font-size: 11px;
+    border-left: 3px solid transparent;
+}
+
+.api-key-item.valid {
     background: #d4edda;
+    border-left-color: #28a745;
     color: #155724;
+}
+
+.api-key-item.invalid {
+    background: #f8d7da;
+    border-left-color: #dc3545;
+    color: #721c24;
+}
+
+.api-key-item.current {
+    background: #fff3cd;
+    border-left-color: #ffc107;
+    color: #856404;
+    font-weight: bold;
+}
+
+.api-key-item.checking {
+    background: #d1ecf1;
+    border-left-color: #17a2b8;
+    color: #0c5460;
+}
+
+.key-preview {
+    font-family: monospace;
+    font-size: 10px;
+    flex: 1;
+    margin-right: 8px;
+}
+
+.key-status {
+    font-weight: bold;
+    font-size: 10px;
+    margin-right: 5px;
+}
+
+.key-remove {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 2px 5px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 9px;
+}
+
+.key-remove:hover {
+    background: #c82333;
+}
+
+.no-keys {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    margin: 15px 0;
+    font-size: 12px;
+}
+
+.current-key-info {
+    margin-top: 8px;
+    padding: 6px 8px;
+    background: #e8f5e8;
+    border-radius: 4px;
+    font-size: 11px;
     border: 1px solid #c3e6cb;
 }
 
-.api-status.invalid {
-    background: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
+.current-key-info strong {
+    color: #28a745;
 }
 
 @media (max-width: 768px) {
     .api-key-input-group {
         flex-direction: column;
-        gap: 20px;
+        gap: 15px;
     }
     
     .api-key-field,
     .api-key-info {
         min-width: auto;
+    }
+    
+    .api-key-controls {
+        justify-content: center;
     }
 }
 
@@ -1088,6 +1195,23 @@ td:nth-child(12) { width: 18%; } /* Tổng hợp */
 .row-checkbox {
     transform: scale(1.2);
     cursor: pointer;
+    pointer-events: none; /* Ngăn double-click trên checkbox */
+}
+
+/* Style cho select all checkbox cell */
+th .select-all-checkbox {
+    transform: scale(1.3);
+    cursor: pointer;
+}
+
+/* Style cho header checkbox */
+th:has(.select-all-checkbox) {
+    cursor: pointer;
+    user-select: none;
+}
+
+th:has(.select-all-checkbox):hover {
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 /* Style cho button controls */
@@ -1138,6 +1262,42 @@ td:nth-child(12) { width: 18%; } /* Tổng hợp */
     font-weight: bold;
     color: #666;
     background: #f8f9fa;
+    text-align: center;
+}
+
+/* Cập nhật checkbox cell styling */
+.checkbox-cell {
+    text-align: center;
+    padding: 8px;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+
+.checkbox-cell:hover {
+    background-color: #f0f8ff;
+}
+
+.row-checkbox {
+    transform: scale(1.2);
+    cursor: pointer;
+    pointer-events: none; /* Ngăn double-click trên checkbox */
+}
+
+/* Style cho select all checkbox cell */
+th .select-all-checkbox {
+    transform: scale(1.3);
+    cursor: pointer;
+}
+
+/* Style cho header checkbox */
+th:has(.select-all-checkbox) {
+    cursor: pointer;
+    user-select: none;
+}
+
+th:has(.select-all-checkbox):hover {
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 /* Selected row styling */
@@ -1150,20 +1310,136 @@ tr.selected:hover {
     background-color: #bbdefb !important;
 }
 
-/* Style cho indeterminate checkbox */
-.select-all-checkbox:indeterminate {
-    background-color: #4ecdc4;
-    border-color: #4ecdc4;
+tr.selected .checkbox-cell {
+    background-color: #e3f2fd;
 }
 
-.select-all-checkbox:indeterminate::before {
+tr.selected .checkbox-cell:hover {
+    background-color: #bbdefb;
+}
+
+/* STT cell styling - có thể click được */
+.stt-cell {
+    font-weight: bold;
+    color: #666;
+    background: #f8f9fa;
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+
+.stt-cell:hover {
+    background-color: #e9ecef;
+}
+
+.stt-cell::before {
     content: '';
     position: absolute;
-    top: 50%;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.stt-cell:hover::before {
+    background-color: rgba(78, 205, 196, 0.1);
+}
+
+/* Khi row được select, STT cũng thay đổi màu */
+tr.selected .stt-cell {
+    background-color: #e3f2fd;
+    color: #1976d2;
+}
+
+tr.selected .stt-cell:hover {
+    background-color: #bbdefb;
+}
+
+/* Visual feedback cho clickable areas */
+.checkbox-cell::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.checkbox-cell:hover::before {
+    background-color: rgba(78, 205, 196, 0.1);
+}
+
+.select-all-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.select-all-header:hover::before {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.stt-header {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+
+.stt-header:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.stt-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.stt-header:hover::before {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Kết hợp STT và checkbox thành một nhóm visual */
+.stt-header,
+.select-all-header {
+    border-right: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Tooltip cho STT header */
+.stt-header::after {
+    content: 'Click để chọn tất cả';
+    position: absolute;
+    bottom: -25px;
     left: 50%;
-    width: 6px;
-    height: 2px;
-    background: white;
-    transform: translate(-50%, -50%);
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    z-index: 1000;
+}
+
+.stt-header:hover::after {
+    opacity: 1;
 }
 

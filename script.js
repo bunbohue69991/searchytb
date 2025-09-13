@@ -3,73 +3,282 @@ class YouTubeSearchTool {
         this.baseUrl = 'https://www.googleapis.com/youtube/v3';
         this.searchResults = [];
         
-        // Thêm biến cho comment pagination
+        // API Keys management
+        this.apiKeys = [];
+        this.currentApiKeyIndex = 0;
+        this.keyValidationStatus = {};
+        
+        // Comment pagination variables
         this.currentVideoId = null;
         this.nextPageToken = null;
         this.isLoadingComments = false;
         this.hasMoreComments = true;
-        
-        // Thêm biến cho comment management
-        this.targetCommentCount = 50; // Default số lượng comment muốn load
+        this.targetCommentCount = 50;
         this.currentCommentCount = 0;
         
         this.initializeEventListeners();
-        this.loadSavedApiKey();
+        this.loadSavedApiKeys();
     }
     
     getCurrentApiKey() {
-        const apiKeyInput = document.getElementById('apiKeyInput');
-        return apiKeyInput.value.trim();
+        if (this.apiKeys.length === 0) return null;
+        return this.apiKeys[this.currentApiKeyIndex];
     }
     
-    loadSavedApiKey() {
-        // Tải API key đã lưu từ localStorage
-        const savedApiKey = localStorage.getItem('youtube_api_key');
-        if (savedApiKey) {
-            document.getElementById('apiKeyInput').value = savedApiKey;
-            this.validateApiKey();
-        }
-    }
-    
-    saveApiKey() {
-        // Lưu API key vào localStorage
-        const apiKey = this.getCurrentApiKey();
-        if (apiKey) {
-            localStorage.setItem('youtube_api_key', apiKey);
-        } else {
-            localStorage.removeItem('youtube_api_key');
-        }
-    }
-    
-    async validateApiKey() {
-        const apiKey = this.getCurrentApiKey();
-        const statusElement = document.getElementById('apiStatus');
+    switchToNextApiKey() {
+        if (this.apiKeys.length <= 1) return false;
         
-        if (!apiKey) {
-            statusElement.textContent = '❌ Chưa nhập API Key';
-            statusElement.className = 'api-status invalid';
-            return false;
-        }
-        
+        this.currentApiKeyIndex = (this.currentApiKeyIndex + 1) % this.apiKeys.length;
+        console.log(`Switched to API key index: ${this.currentApiKeyIndex}`);
+        this.updateCurrentKeyDisplay();
+        return true;
+    }
+    
+    loadSavedApiKeys() {
         try {
-            // Test API key bằng một request đơn giản
+            const savedKeys = localStorage.getItem('youtube_api_keys');
+            if (savedKeys) {
+                this.apiKeys = JSON.parse(savedKeys);
+                this.updateApiKeyTextarea();
+                this.updateApiKeyCount();
+                this.updateCurrentKeyDisplay();
+                
+                // Validate saved keys
+                if (this.apiKeys.length > 0) {
+                    this.validateAllApiKeys();
+                }
+            }
+        } catch (error) {
+            console.error('Error loading saved API keys:', error);
+            this.apiKeys = [];
+        }
+    }
+    
+    saveApiKeys() {
+        try {
+            localStorage.setItem('youtube_api_keys', JSON.stringify(this.apiKeys));
+        } catch (error) {
+            console.error('Error saving API keys:', error);
+        }
+    }
+    
+    parseApiKeysFromTextarea() {
+        const textarea = document.getElementById('apiKeyInput');
+        const text = textarea.value.trim();
+        
+        if (!text) return [];
+        
+        const keys = text.split('\n')
+            .map(key => key.trim())
+            .filter(key => key.length > 0)
+            .filter((key, index, array) => array.indexOf(key) === index); // Remove duplicates
+        
+        return keys;
+    }
+    
+    updateApiKeyTextarea() {
+        const textarea = document.getElementById('apiKeyInput');
+        textarea.value = this.apiKeys.join('\n');
+    }
+    
+    updateApiKeyCount() {
+        const countElement = document.querySelector('.api-key-count');
+        if (countElement) {
+            countElement.textContent = `${this.apiKeys.length} API key${this.apiKeys.length !== 1 ? 's' : ''}`;
+        }
+    }
+    
+    updateCurrentKeyDisplay() {
+        const currentKeyElement = document.getElementById('currentKeyIndex');
+        if (currentKeyElement) {
+            if (this.apiKeys.length > 0) {
+                const currentKey = this.getCurrentApiKey();
+                const preview = currentKey ? `${currentKey.substring(0, 15)}...` : 'None';
+                currentKeyElement.textContent = `#${this.currentApiKeyIndex + 1} (${preview})`;
+            } else {
+                currentKeyElement.textContent = 'Chưa có';
+            }
+        }
+    }
+    
+    translateErrorMessage(errorMessage) {
+        const translations = {
+            'API key not valid': 'API key không hợp lệ',
+            'API key is missing': 'Thiếu API key',
+            'quota': 'Đã hết quota hằng ngày',
+            'quotaExceeded': 'Đã vượt quota',
+            'rateLimitExceeded': 'Vượt giới hạn tần suất',
+            'invalidParameter': 'Tham số không hợp lệ',
+            'forbidden': 'Bị cấm truy cập',
+            'keyExpired': 'API key đã hết hạn',
+            'keyInvalid': 'API key không đúng định dạng',
+            'Daily Limit Exceeded': 'Đã vượt giới hạn hằng ngày',
+            'The request cannot be completed because you have exceeded your quota': 'Không thể hoàn thành yêu cầu vì bạn đã vượt quota',
+            'YouTube Data API v3 has not been used in project': 'YouTube Data API v3 chưa được bật trong project',
+            'API key is not valid': 'API key không hợp lệ hoặc bị hạn chế',
+            'Network error': 'Lỗi kết nối mạng',
+            'Bad Request': 'Yêu cầu không hợp lệ',
+            'Unauthorized': 'Không được phép truy cập',
+            'Forbidden': 'Bị cấm truy cập - kiểm tra API key',
+            'Not Found': 'Không tìm thấy endpoint',
+            'Internal Server Error': 'Lỗi máy chủ nội bộ'
+        };
+
+        // Tìm từ khóa trong error message
+        for (const [key, value] of Object.entries(translations)) {
+            if (errorMessage.toLowerCase().includes(key.toLowerCase())) {
+                return value;
+            }
+        }
+
+        return errorMessage; // Trả về original nếu không tìm thấy translation
+    }
+
+    async validateSingleApiKey(apiKey) {
+        try {
             const response = await fetch(`${this.baseUrl}/search?part=snippet&q=test&maxResults=1&key=${apiKey}`);
             const data = await response.json();
             
             if (data.error) {
-                statusElement.textContent = '❌ API Key không hợp lệ: ' + data.error.message;
-                statusElement.className = 'api-status invalid';
-                return false;
+                const translatedError = this.translateErrorMessage(data.error.message);
+                return { valid: false, error: translatedError };
             } else {
-                statusElement.textContent = '✅ API Key hợp lệ';
-                statusElement.className = 'api-status valid';
-                this.saveApiKey();
-                return true;
+                return { valid: true, error: null };
             }
         } catch (error) {
-            statusElement.textContent = '❌ Không thể kiểm tra API Key';
-            statusElement.className = 'api-status invalid';
-            return false;
+            const translatedError = this.translateErrorMessage(error.message || 'Lỗi kết nối');
+            return { valid: false, error: translatedError };
+        }
+    }
+    
+    async validateAllApiKeys() {
+        const statusList = document.getElementById('apiStatusList');
+        statusList.innerHTML = '';
+        
+        if (this.apiKeys.length === 0) {
+            statusList.innerHTML = '<p class="no-keys">Chưa có API key nào</p>';
+            return;
+        }
+        
+        // Show checking status
+        this.apiKeys.forEach((key, index) => {
+            const keyItem = this.createApiKeyStatusItem(key, index, 'checking', 'Đang kiểm tra...');
+            statusList.appendChild(keyItem);
+        });
+        
+        // Validate each key
+        for (let i = 0; i < this.apiKeys.length; i++) {
+            const key = this.apiKeys[i];
+            const result = await this.validateSingleApiKey(key);
+            
+            this.keyValidationStatus[key] = result;
+            
+            // Update UI
+            const keyItem = statusList.children[i];
+            if (result.valid) {
+                keyItem.className = `api-key-item valid ${i === this.currentApiKeyIndex ? 'current' : ''}`;
+                keyItem.querySelector('.key-status').textContent = '✅ Hợp lệ';
+            } else {
+                keyItem.className = `api-key-item invalid ${i === this.currentApiKeyIndex ? 'current' : ''}`;
+                keyItem.querySelector('.key-status').textContent = `❌ ${result.error}`;
+            }
+            
+            // Small delay between requests
+            await new Promise(resolve => setTimeout(resolve, 300));
+        }
+    }
+    
+    createApiKeyStatusItem(key, index, status, statusText) {
+        const item = document.createElement('div');
+        item.className = `api-key-item ${status} ${index === this.currentApiKeyIndex ? 'current' : ''}`;
+        
+        const preview = key.substring(0, 15) + '...';
+        
+        item.innerHTML = `
+            <div class="key-preview">#${index + 1}: ${preview}</div>
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <span class="key-status">${statusText}</span>
+                <button class="key-remove" onclick="removeApiKey(${index})" title="Xóa key này">🗑️</button>
+            </div>
+        `;
+        
+        return item;
+    }
+    
+    removeApiKeyAt(index) {
+        if (index >= 0 && index < this.apiKeys.length) {
+            const removedKey = this.apiKeys[index];
+            this.apiKeys.splice(index, 1);
+            
+            // Delete validation status
+            delete this.keyValidationStatus[removedKey];
+            
+            // Adjust current index if necessary
+            if (this.currentApiKeyIndex >= index && this.currentApiKeyIndex > 0) {
+                this.currentApiKeyIndex--;
+            } else if (this.currentApiKeyIndex >= this.apiKeys.length && this.apiKeys.length > 0) {
+                this.currentApiKeyIndex = 0;
+            }
+            
+            this.saveApiKeys();
+            this.updateApiKeyTextarea();
+            this.updateApiKeyCount();
+            this.updateCurrentKeyDisplay();
+            this.validateAllApiKeys();
+        }
+    }
+    
+    addApiKeysFromTextarea() {
+        const newKeys = this.parseApiKeysFromTextarea();
+        
+        if (newKeys.length === 0) {
+            alert('Vui lòng nhập ít nhất một API key!');
+            return;
+        }
+        
+        // Add only new keys
+        const addedKeys = [];
+        newKeys.forEach(key => {
+            if (!this.apiKeys.includes(key)) {
+                this.apiKeys.push(key);
+                addedKeys.push(key);
+            }
+        });
+        
+        if (addedKeys.length === 0) {
+            alert('Tất cả API key đã tồn tại!');
+            return;
+        }
+        
+        this.saveApiKeys();
+        this.updateApiKeyTextarea();
+        this.updateApiKeyCount();
+        this.updateCurrentKeyDisplay();
+        this.validateAllApiKeys();
+        
+        showNotification(`Đã thêm ${addedKeys.length} API key mới!`, 3000);
+    }
+    
+    clearAllApiKeys() {
+        if (this.apiKeys.length === 0) {
+            alert('Không có API key nào để xóa!');
+            return;
+        }
+        
+        if (confirm(`Bạn có chắc muốn xóa tất cả ${this.apiKeys.length} API key?`)) {
+            this.apiKeys = [];
+            this.currentApiKeyIndex = 0;
+            this.keyValidationStatus = {};
+            
+            this.saveApiKeys();
+            this.updateApiKeyTextarea();
+            this.updateApiKeyCount();
+            this.updateCurrentKeyDisplay();
+            
+            const statusList = document.getElementById('apiStatusList');
+            statusList.innerHTML = '<p class="no-keys">Chưa có API key nào</p>';
+            
+            showNotification('Đã xóa tất cả API key!', 2000);
         }
     }
     
@@ -80,6 +289,11 @@ class YouTubeSearchTool {
         document.getElementById('copySelectedBtn').addEventListener('click', () => this.copySelectedRows());
         document.getElementById('applyBtn').addEventListener('click', () => this.applyCustomValues());
         
+        // API Key management events
+        document.getElementById('validateAllKeys').addEventListener('click', () => this.validateAllApiKeys());
+        document.getElementById('addMoreKeys').addEventListener('click', () => this.addApiKeysFromTextarea());
+        document.getElementById('clearAllKeys').addEventListener('click', () => this.clearAllApiKeys());
+        
         // Select all checkbox trong header
         const selectAllCheckbox = document.getElementById('selectAllCheckbox');
         if (selectAllCheckbox) {
@@ -87,30 +301,6 @@ class YouTubeSearchTool {
                 this.toggleAllRows(e.target.checked);
             });
         }
-        
-        // API Key events
-        const apiKeyInput = document.getElementById('apiKeyInput');
-        const toggleBtn = document.getElementById('toggleApiKey');
-        
-        apiKeyInput.addEventListener('input', () => {
-            const statusElement = document.getElementById('apiStatus');
-            statusElement.textContent = '⏳ Nhập API Key và bấm tìm kiếm để kiểm tra';
-            statusElement.className = 'api-status';
-        });
-        
-        apiKeyInput.addEventListener('blur', () => {
-            this.saveApiKey();
-        });
-        
-        toggleBtn.addEventListener('click', () => {
-            if (apiKeyInput.type === 'password') {
-                apiKeyInput.type = 'text';
-                toggleBtn.textContent = '🙈';
-            } else {
-                apiKeyInput.type = 'password';
-                toggleBtn.textContent = '👁️';
-            }
-        });
         
         // Column checkbox events
         ['includeKeyword', 'includeTitle', 'includeVideoId', 'includeVideoUrl', 'includeChannelName', 'includeChannelUrl', 'includeDuration'].forEach(id => {
@@ -149,15 +339,35 @@ class YouTubeSearchTool {
         }
     }
     
+    // Thêm method validateCurrentApiKey bị thiếu
+    async validateCurrentApiKey() {
+        const currentKey = this.getCurrentApiKey();
+        if (!currentKey) {
+            return false;
+        }
+
+        try {
+            const response = await fetch(`${this.baseUrl}/search?part=snippet&q=test&maxResults=1&key=${currentKey}`);
+            const data = await response.json();
+            
+            if (data.error) {
+                return false;
+            } else {
+                return true;
+            }
+        } catch (error) {
+            return false;
+        }
+    }
+
+    // Sửa lại method searchVideos
     async searchVideos() {
         // Kiểm tra API key trước khi tìm kiếm
-        const apiKey = this.getCurrentApiKey();
-        if (!apiKey) {
-            alert('Vui lòng nhập YouTube API Key trước khi tìm kiếm!');
-            document.getElementById('apiKeyInput').focus();
+        if (this.apiKeys.length === 0) {
+            alert('Vui lòng thêm ít nhất một YouTube API Key trước khi tìm kiếm!');
             return;
         }
-        
+
         const keywordInput = document.getElementById('searchKeyword').value.trim();
         const videoCount = parseInt(document.getElementById('videoCount').value);
         
@@ -181,12 +391,6 @@ class YouTubeSearchTool {
         this.searchResults = [];
         
         try {
-            // Validate API key trước khi bắt đầu tìm kiếm
-            const isValidKey = await this.validateApiKey();
-            if (!isValidKey) {
-                throw new Error('API Key không hợp lệ. Vui lòng kiểm tra lại.');
-            }
-            
             const filters = this.getSearchFilters();
             
             // Hiển thị số lượng từ khóa sẽ tìm
@@ -204,6 +408,7 @@ class YouTubeSearchTool {
                 this.displayResults();
                 document.getElementById('downloadBtn').disabled = false;
                 document.getElementById('copyColumn8Btn').disabled = false;
+                document.getElementById('copySelectedBtn').disabled = false;
                 document.getElementById('applyBtn').disabled = false;
             } else {
                 this.showError('Không tìm thấy video nào với các từ khóa này.');
@@ -211,12 +416,90 @@ class YouTubeSearchTool {
             
         } catch (error) {
             console.error('Search error:', error);
-            this.showError('Có lỗi xảy ra khi tìm kiếm: ' + error.message);
+            this.showError('Có lỗi xảy ra khi tìm kiếm: ' + this.translateErrorMessage(error.message));
         }
         
         this.hideLoading();
     }
-    
+
+    // Sửa lại method searchSingleKeyword
+    async searchSingleKeyword(keyword, videoCount, filters) {
+        const searchParams = {
+            part: 'snippet',
+            q: keyword,
+            type: 'video',
+            maxResults: Math.min(videoCount, 50),
+            key: this.getCurrentApiKey(),
+            ...filters
+        };
+        
+        let retryCount = 0;
+        const maxRetries = this.apiKeys.length;
+        
+        while (retryCount < maxRetries) {
+            try {
+                const response = await fetch(`${this.baseUrl}/search?${new URLSearchParams(searchParams)}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    if (data.error.message.includes('quota') && this.switchToNextApiKey()) {
+                        console.log('API key quota exceeded, switching to next key...');
+                        searchParams.key = this.getCurrentApiKey();
+                        retryCount++;
+                        continue; // Thử lại với key mới
+                    } else {
+                        throw new Error(this.translateErrorMessage(data.error.message));
+                    }
+                } else {
+                    if (data.items && data.items.length > 0) {
+                        await this.getVideoDetails(data.items, keyword);
+                    }
+                    break; // Thành công, thoát loop
+                }
+            } catch (error) {
+                if (retryCount === maxRetries - 1) {
+                    throw error; // Đã thử hết key, throw error
+                }
+                retryCount++;
+            }
+        }
+    }
+
+    // Thêm method translateErrorMessage nếu chưa có
+    translateErrorMessage(errorMessage) {
+        const translations = {
+            'API key not valid': 'API key không hợp lệ',
+            'API key is missing': 'Thiếu API key',
+            'quota': 'Đã hết quota hằng ngày',
+            'quotaExceeded': 'Đã vượt quota',
+            'rateLimitExceeded': 'Vượt giới hạn tần suất',
+            'invalidParameter': 'Tham số không hợp lệ',
+            'forbidden': 'Bị cấm truy cập',
+            'keyExpired': 'API key đã hết hạn',
+            'keyInvalid': 'API key không đúng định dạng',
+            'Daily Limit Exceeded': 'Đã vượt giới hạn hằng ngày',
+            'The request cannot be completed because you have exceeded your quota': 'Không thể hoàn thành yêu cầu vì bạn đã vượt quota',
+            'YouTube Data API v3 has not been used in project': 'YouTube Data API v3 chưa được bật trong project',
+            'API key is not valid': 'API key không hợp lệ hoặc bị hạn chế',
+            'Network error': 'Lỗi kết nối mạng',
+            'Bad Request': 'Yêu cầu không hợp lệ',
+            'Unauthorized': 'Không được phép truy cập',
+            'Forbidden': 'Bị cấm truy cập - kiểm tra API key',
+            'Not Found': 'Không tìm thấy endpoint',
+            'Internal Server Error': 'Lỗi máy chủ nội bộ'
+        };
+
+        // Tìm từ khóa trong error message
+        for (const [key, value] of Object.entries(translations)) {
+            if (errorMessage && errorMessage.toLowerCase().includes(key.toLowerCase())) {
+                return value;
+            }
+        }
+
+        return errorMessage || 'Lỗi không xác định'; // Trả về original nếu không tìm thấy translation
+    }
+
+    // Đảm bảo method parseKeywords tồn tại
     parseKeywords(input) {
         // Bước 1: Tách theo xuống dòng trước
         const linesByNewline = input.split('\n');
@@ -241,12 +524,13 @@ class YouTubeSearchTool {
         console.log('Parsed keywords:', uniqueKeywords);
         return uniqueKeywords;
     }
-    
+
+    // Đảm bảo method getSearchFilters tồn tại
     getSearchFilters() {
         const filters = {};
         
         // Bộ lọc ngày tải lên - sử dụng publishedAfter
-        const uploadDate = document.getElementById('uploadDate').value;
+        const uploadDate = document.getElementById('uploadDate')?.value;
         if (uploadDate) {
             const now = new Date();
             let publishedAfter;
@@ -275,19 +559,19 @@ class YouTubeSearchTool {
         }
         
         // Bộ lọc loại - chỉ hỗ trợ video, channel, playlist
-        const type = document.getElementById('type').value;
+        const type = document.getElementById('type')?.value;
         if (type) {
             filters.type = type;
         }
         
         // Bộ lọc thời lượng - sử dụng videoDuration
-        const duration = document.getElementById('duration').value;
+        const duration = document.getElementById('duration')?.value;
         if (duration) {
             filters.videoDuration = duration;
         }
         
         // Bộ lọc tính năng
-        const features = document.getElementById('features').value;
+        const features = document.getElementById('features')?.value;
         if (features) {
             switch (features) {
                 case 'live':
@@ -313,7 +597,7 @@ class YouTubeSearchTool {
         }
         
         // Bộ lọc sắp xếp - sử dụng order
-        const sortBy = document.getElementById('sortBy').value;
+        const sortBy = document.getElementById('sortBy')?.value;
         if (sortBy) {
             const sortMap = {
                 'relevance': 'relevance',
@@ -325,28 +609,6 @@ class YouTubeSearchTool {
         }
         
         return filters;
-    }
-    
-    async searchSingleKeyword(keyword, videoCount, filters) {
-        const searchParams = {
-            part: 'snippet',
-            q: keyword,
-            type: 'video',
-            maxResults: Math.min(videoCount, 50),
-            key: this.getCurrentApiKey(),
-            ...filters
-        };
-        
-        const response = await fetch(`${this.baseUrl}/search?${new URLSearchParams(searchParams)}`);
-        const data = await response.json();
-        
-        if (data.error) {
-            throw new Error(data.error.message);
-        }
-        
-        if (data.items && data.items.length > 0) {
-            await this.getVideoDetails(data.items, keyword);
-        }
     }
     
     async getVideoDetails(videoItems, keyword) {
@@ -673,8 +935,8 @@ class YouTubeSearchTool {
             row.setAttribute('data-index', index);
             
             row.innerHTML = `
-                <td class="stt-cell">${index + 1}</td>
-                <td class="checkbox-cell">
+                <td class="stt-cell" onclick="toggleRowCheckbox(${index})">${index + 1}</td>
+                <td class="checkbox-cell" onclick="toggleRowCheckbox(${index})">
                     <input type="checkbox" class="row-checkbox" data-index="${index}">
                 </td>
                 <td>${result.keyword}</td>
@@ -870,23 +1132,43 @@ class YouTubeSearchTool {
         }
     }
     
+    // Đảm bảo loading methods tồn tại
     showLoading() {
-        document.getElementById('loading').classList.remove('hidden');
-        document.getElementById('results').classList.add('hidden');
+        const loadingElement = document.getElementById('loading');
+        if (loadingElement) {
+            loadingElement.classList.remove('hidden');
+        }
+        const resultsElement = document.getElementById('results');
+        if (resultsElement) {
+            resultsElement.classList.add('hidden');
+        }
     }
     
     hideLoading() {
-        document.getElementById('loading').classList.add('hidden');
+        const loadingElement = document.getElementById('loading');
+        if (loadingElement) {
+            loadingElement.classList.add('hidden');
+        }
     }
     
     showError(message) {
         const errorDiv = document.getElementById('error');
-        errorDiv.querySelector('p').textContent = message;
-        errorDiv.classList.remove('hidden');
+        if (errorDiv) {
+            const errorP = errorDiv.querySelector('p');
+            if (errorP) {
+                errorP.textContent = message;
+            }
+            errorDiv.classList.remove('hidden');
+        } else {
+            alert(message); // Fallback
+        }
     }
     
     hideError() {
-        document.getElementById('error').classList.add('hidden');
+        const errorDiv = document.getElementById('error');
+        if (errorDiv) {
+            errorDiv.classList.add('hidden');
+        }
     }
 
     // Thêm method mới để load comments
@@ -1398,3 +1680,31 @@ document.addEventListener('keydown', function(event) {
 document.addEventListener('DOMContentLoaded', () => {
     window.youtubeSearchTool = new YouTubeSearchTool();
 });
+
+// Global function để toggle checkbox khi click vào cell
+function toggleRowCheckbox(index) {
+    const checkbox = document.querySelector(`.row-checkbox[data-index="${index}"]`);
+    if (checkbox) {
+        checkbox.checked = !checkbox.checked;
+        checkbox.dispatchEvent(new Event('change'));
+    }
+}
+
+// Function để toggle select all khi click vào header
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const toolInstance = window.youtubeSearchTool;
+    
+    if (selectAllCheckbox && toolInstance) {
+        selectAllCheckbox.checked = !selectAllCheckbox.checked;
+        toolInstance.toggleAllRows(selectAllCheckbox.checked);
+    }
+}
+
+// Global function để remove API key
+function removeApiKey(index) {
+    const toolInstance = window.youtubeSearchTool;
+    if (toolInstance) {
+        toolInstance.removeApiKeyAt(index);
+    }
+}
