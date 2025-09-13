@@ -153,8 +153,9 @@ sleep music, nature sounds" class="search-textarea" rows="3"></textarea>
                     </div>
                 </div>
                 <div class="button-group">
+                    <button id="copySelectedBtn" class="copy-selected-btn" disabled>📄 Copy đã chọn (0)</button>
                     <button id="downloadBtn" class="download-btn" disabled>📋 Copy tất cả dữ liệu</button>
-                    <button id="copyColumn8Btn" class="copy-column8-btn" disabled> Copy cột 8</button>
+                    <button id="copyColumn8Btn" class="copy-column8-btn" disabled>Copy cột 8</button>
                 </div>
             </div>
             
@@ -167,6 +168,8 @@ sleep music, nature sounds" class="search-textarea" rows="3"></textarea>
                 <table>
                     <thead>
                         <tr>
+                            <th>STT</th>
+                            <th>☑️<br><input type="checkbox" id="selectAllCheckbox" class="select-all-checkbox"></th>
                             <th>Cột 1<br>Từ khóa<br><input type="checkbox" id="includeKeyword" class="column-checkbox" checked></th>
                             <th>Cột 2<br>Tiêu đề video<br><input type="checkbox" id="includeTitle" class="column-checkbox" checked></th>
                             <th>Cột 3<br>Link video (ID)<br><input type="checkbox" id="includeVideoId" class="column-checkbox" checked></th>

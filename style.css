@@ -273,17 +273,19 @@ tr:hover {
     background-color: #f8f9fa;
 }
 
-/* Điều chỉnh width cột cho 10 cột */
-td:nth-child(1) { width: 6%; }
-td:nth-child(2) { width: 18%; }
-td:nth-child(3) { width: 7%; }
-td:nth-child(4) { width: 11%; }
-td:nth-child(5) { width: 8%; }
-td:nth-child(6) { width: 10%; }
-td:nth-child(7) { width: 6%; }
-td:nth-child(8) { width: 7%; }
-td:nth-child(9) { width: 7%; }
-td:nth-child(10) { width: 20%; }
+/* Điều chỉnh width cột cho 12 cột với STT và checkbox */
+td:nth-child(1) { width: 4%; text-align: center; } /* STT */
+td:nth-child(2) { width: 4%; text-align: center; } /* Checkbox */
+td:nth-child(3) { width: 6%; } /* Từ khóa */
+td:nth-child(4) { width: 16%; } /* Tiêu đề */
+td:nth-child(5) { width: 7%; } /* Video ID */
+td:nth-child(6) { width: 10%; } /* Video URL */
+td:nth-child(7) { width: 8%; } /* Tên kênh */
+td:nth-child(8) { width: 10%; } /* Link kênh */
+td:nth-child(9) { width: 6%; } /* Thời lượng */
+td:nth-child(10) { width: 7%; } /* Lượt xem */
+td:nth-child(11) { width: 6%; } /* Comment */
+td:nth-child(12) { width: 18%; } /* Tổng hợp */
 
 .copy-btn {
     background: #4ecdc4;
@@ -1075,5 +1077,93 @@ td:nth-child(10) { width: 20%; }
 
 .comment-copy-btn:hover {
     background: #44a08d;
+}
+
+/* Style cho checkbox */
+.select-all-checkbox {
+    transform: scale(1.3);
+    cursor: pointer;
+}
+
+.row-checkbox {
+    transform: scale(1.2);
+    cursor: pointer;
+}
+
+/* Style cho button controls */
+/* Xóa các style này */
+/*
+.select-control-btn {
+    padding: 12px 20px;
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s;
+    font-size: 14px;
+}
+
+.select-control-btn:hover {
+    transform: translateY(-2px);
+}
+*/
+
+/* Giữ lại style cho copy-selected-btn */
+.copy-selected-btn {
+    padding: 12px 25px;
+    background: linear-gradient(45deg, #ff9a56, #ff6b6b);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s;
+    font-size: 14px;
+}
+
+.copy-selected-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+}
+
+.copy-selected-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* STT styling */
+.stt-cell {
+    font-weight: bold;
+    color: #666;
+    background: #f8f9fa;
+}
+
+/* Selected row styling */
+tr.selected {
+    background-color: #e3f2fd !important;
+    border-left: 4px solid #4ecdc4;
+}
+
+tr.selected:hover {
+    background-color: #bbdefb !important;
+}
+
+/* Style cho indeterminate checkbox */
+.select-all-checkbox:indeterminate {
+    background-color: #4ecdc4;
+    border-color: #4ecdc4;
+}
+
+.select-all-checkbox:indeterminate::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 6px;
+    height: 2px;
+    background: white;
+    transform: translate(-50%, -50%);
 }
 

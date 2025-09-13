@@ -77,14 +77,22 @@ class YouTubeSearchTool {
         document.getElementById('searchBtn').addEventListener('click', () => this.searchVideos());
         document.getElementById('downloadBtn').addEventListener('click', () => this.downloadResults());
         document.getElementById('copyColumn8Btn').addEventListener('click', () => this.copyColumn8());
+        document.getElementById('copySelectedBtn').addEventListener('click', () => this.copySelectedRows());
         document.getElementById('applyBtn').addEventListener('click', () => this.applyCustomValues());
+        
+        // Select all checkbox trong header
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', (e) => {
+                this.toggleAllRows(e.target.checked);
+            });
+        }
         
         // API Key events
         const apiKeyInput = document.getElementById('apiKeyInput');
         const toggleBtn = document.getElementById('toggleApiKey');
         
         apiKeyInput.addEventListener('input', () => {
-            // Reset status khi user thay đổi
             const statusElement = document.getElementById('apiStatus');
             statusElement.textContent = '⏳ Nhập API Key và bấm tìm kiếm để kiểm tra';
             statusElement.className = 'api-status';
@@ -104,7 +112,7 @@ class YouTubeSearchTool {
             }
         });
         
-        // Column checkbox events - kiểm tra xem element có tồn tại không
+        // Column checkbox events
         ['includeKeyword', 'includeTitle', 'includeVideoId', 'includeVideoUrl', 'includeChannelName', 'includeChannelUrl', 'includeDuration'].forEach(id => {
             const element = document.getElementById(id);
             if (element) {
@@ -662,7 +670,13 @@ class YouTubeSearchTool {
         
         this.searchResults.forEach((result, index) => {
             const row = document.createElement('tr');
+            row.setAttribute('data-index', index);
+            
             row.innerHTML = `
+                <td class="stt-cell">${index + 1}</td>
+                <td class="checkbox-cell">
+                    <input type="checkbox" class="row-checkbox" data-index="${index}">
+                </td>
                 <td>${result.keyword}</td>
                 <td>${result.title}</td>
                 <td>${result.videoId}</td>
@@ -684,17 +698,73 @@ class YouTubeSearchTool {
             tbody.appendChild(row);
         });
         
+        // Thêm event listeners cho tất cả checkbox
+        document.querySelectorAll('.row-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                this.updateCopySelectedButton();
+                this.updateRowSelection(checkbox);
+            });
+        });
+        
         document.getElementById('results').classList.remove('hidden');
+        this.updateCopySelectedButton();
     }
     
+    updateRowSelection(checkbox) {
+        const row = checkbox.closest('tr');
+        if (checkbox.checked) {
+            row.classList.add('selected');
+        } else {
+            row.classList.remove('selected');
+        }
+    }
+
+    toggleAllRows(checked) {
+        document.querySelectorAll('.row-checkbox').forEach(checkbox => {
+            checkbox.checked = checked;
+            this.updateRowSelection(checkbox);
+        });
+        this.updateCopySelectedButton();
+    }
+
+    updateCopySelectedButton() {
+        const selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+        const copySelectedBtn = document.getElementById('copySelectedBtn');
+        
+        if (copySelectedBtn) {
+            copySelectedBtn.disabled = selectedCheckboxes.length === 0;
+            copySelectedBtn.textContent = `📄 Copy đã chọn (${selectedCheckboxes.length})`;
+        }
+        
+        // Update select all checkbox state
+        const allCheckboxes = document.querySelectorAll('.row-checkbox');
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        if (selectAllCheckbox && allCheckboxes.length > 0) {
+            const checkedCount = selectedCheckboxes.length;
+            const totalCount = allCheckboxes.length;
+            
+            if (checkedCount === 0) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+            } else if (checkedCount === totalCount) {
+                selectAllCheckbox.checked = true;
+                selectAllCheckbox.indeterminate = false;
+            } else {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = true;
+            }
+        }
+    }
+
     downloadResults() {
         if (this.searchResults.length === 0) {
             alert('Không có dữ liệu để copy!');
             return;
         }
         
-        // Tạo nội dung để copy tất cả 9 cột
-        const allData = this.searchResults.map(result => [
+        // Tạo nội dung để copy tất cả 11 cột (bao gồm STT, không bao gồm checkbox)
+        const allData = this.searchResults.map((result, index) => [
+            index + 1, // STT
             result.keyword,
             result.title,
             result.videoId,
@@ -703,7 +773,7 @@ class YouTubeSearchTool {
             result.channelUrl,
             result.duration,
             result.viewCount,
-            'Comment', // Placeholder cho cột comment
+            'Comment', // Placeholder cho comment
             result.summary
         ]);
         
@@ -1011,6 +1081,91 @@ class YouTubeSearchTool {
         const errorDiv = document.getElementById('commentError');
         errorDiv.querySelector('p').textContent = message;
         errorDiv.classList.remove('hidden');
+    }
+
+    selectAllRows() {
+        document.querySelectorAll('.row-checkbox').forEach(checkbox => {
+            checkbox.checked = true;
+            checkbox.closest('tr').classList.add('selected');
+        });
+        document.getElementById('selectAllCheckbox').checked = true;
+        this.updateCopySelectedButton();
+    }
+
+    deselectAllRows() {
+        document.querySelectorAll('.row-checkbox').forEach(checkbox => {
+            checkbox.checked = false;
+            checkbox.closest('tr').classList.remove('selected');
+        });
+        document.getElementById('selectAllCheckbox').checked = false;
+        this.updateCopySelectedButton();
+    }
+
+    toggleAllRows(checked) {
+        document.querySelectorAll('.row-checkbox').forEach(checkbox => {
+            checkbox.checked = checked;
+            if (checked) {
+                checkbox.closest('tr').classList.add('selected');
+            } else {
+                checkbox.closest('tr').classList.remove('selected');
+            }
+        });
+        this.updateCopySelectedButton();
+    }
+
+    updateCopySelectedButton() {
+        const selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+        const copySelectedBtn = document.getElementById('copySelectedBtn');
+        
+        if (copySelectedBtn) {
+            copySelectedBtn.disabled = selectedCheckboxes.length === 0;
+            copySelectedBtn.textContent = `📄 Copy đã chọn (${selectedCheckboxes.length})`;
+        }
+        
+        // Update select all checkbox state
+        const allCheckboxes = document.querySelectorAll('.row-checkbox');
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        if (selectAllCheckbox && allCheckboxes.length > 0) {
+            const checkedCount = selectedCheckboxes.length;
+            const totalCount = allCheckboxes.length;
+            
+            if (checkedCount === 0) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+            } else if (checkedCount === totalCount) {
+                selectAllCheckbox.checked = true;
+                selectAllCheckbox.indeterminate = false;
+            } else {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = true;
+            }
+        }
+    }
+
+    copySelectedRows() {
+        const selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+        
+        if (selectedCheckboxes.length === 0) {
+            alert('Vui lòng chọn ít nhất một dòng để copy!');
+            return;
+        }
+        
+        // Chỉ lấy phần tổng hợp (summary) của những hàng đã chọn
+        const selectedSummaries = Array.from(selectedCheckboxes).map(checkbox => {
+            const index = parseInt(checkbox.dataset.index);
+            const result = this.searchResults[index];
+            return result.summary;
+        });
+        
+        // Chuyển đổi thành text với xuống dòng ngăn cách (giống như Copy cột 8)
+        const textToCopy = selectedSummaries.join('\n');
+        
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            showNotification(`Đã copy tổng hợp của ${selectedCheckboxes.length} dòng đã chọn!`, 3000);
+        }).catch(err => {
+            console.error('Copy failed:', err);
+            alert('Không thể copy. Vui lòng copy thủ công.');
+        });
     }
 }
 
