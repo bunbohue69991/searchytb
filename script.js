@@ -745,12 +745,21 @@ class YouTubeSearchTool {
             channelUrl = `https://www.youtube.com/channel/${channelId}`;
         }
         
+        // Extract channel handle từ channelUrl for ab_channel parameter
+        let abChannelParam = channelId; // fallback to channelId
+        if (channelUrl && channelUrl.includes('/@')) {
+            const match = channelUrl.match(/@([^/?]+)/);
+            if (match) {
+                abChannelParam = '@' + match[1];
+            }
+        }
+        
         // Map dữ liệu với custom URL thực tế
         const dataMap = {
             channelName: channelName,
             channelUrl: channelUrl, // Sử dụng custom URL thực tế
             title: title,
-            videoUrl: `https://www.youtube.com/watch?v=${videoId}&ab_channel=${channelId}`,
+            videoUrl: `https://www.youtube.com/watch?v=${videoId}&ab_channel=${abChannelParam}`,
             duration: duration,
             keyword: keyword,
             videoId: videoId
@@ -771,7 +780,7 @@ class YouTubeSearchTool {
             parts.push(channelName);
             parts.push(channelUrl); // Sử dụng custom URL thực tế
             parts.push(title);
-            parts.push(`https://www.youtube.com/watch?v=${videoId}&ab_channel=${channelId}`);
+            parts.push(`https://www.youtube.com/watch?v=${videoId}&ab_channel=${abChannelParam}`);
             parts.push(duration);
             parts.push(keyword);
         }
