@@ -430,6 +430,8 @@ class YouTubeSearchTool {
             type: 'video',
             maxResults: Math.min(videoCount, 50),
             key: this.getCurrentApiKey(),
+            regionCode: 'US', // Thêm để lấy kết quả từ khu vực Mỹ
+            relevanceLanguage: 'en', // Thêm để ưu tiên nội dung tiếng Anh
             ...filters
         };
         
@@ -614,8 +616,8 @@ class YouTubeSearchTool {
     async getVideoDetails(videoItems, keyword) {
         try {
             const videoIds = videoItems.map(item => item.id.videoId).join(',');
-            // Thêm statistics để lấy lượt xem
-            const response = await fetch(`${this.baseUrl}/videos?part=snippet,contentDetails,liveStreamingDetails,statistics&id=${videoIds}&key=${this.getCurrentApiKey()}`);
+            // Thêm statistics để lấy lượt xem và hl=en để lấy thông tin bằng tiếng Anh
+            const response = await fetch(`${this.baseUrl}/videos?part=snippet,contentDetails,liveStreamingDetails,statistics&id=${videoIds}&hl=en&key=${this.getCurrentApiKey()}`);
             const data = await response.json();
             
             if (data.error) {
@@ -655,9 +657,11 @@ class YouTubeSearchTool {
                 return {
                     keyword: keyword,
                     title: video.snippet.title,
+                    originalTitle: video.snippet.title, // Lưu tiêu đề gốc
                     videoId: video.id,
                     videoUrl: `https://www.youtube.com/watch?v=${video.id}`,
                     channelName: video.snippet.channelTitle,
+                    originalChannelName: video.snippet.channelTitle, // Lưu tên kênh gốc
                     channelId: video.snippet.channelId,
                     channelUrl: channelUrl, // URL thực tế của channel
                     duration: originalDuration,
@@ -669,19 +673,136 @@ class YouTubeSearchTool {
             
             this.searchResults = this.searchResults.concat(newResults);
             
+            // Dịch tất cả title và channel name sau khi đã có kết quả
+            await this.translateAllResults();
+            
         } catch (error) {
             console.error('Video details error:', error);
             throw error;
         }
     }
     
+    // Method mới để dịch tất cả kết quả
+    async translateAllResults() {
+        if (this.searchResults.length === 0) return;
+        
+        console.log('🔄 Bắt đầu dịch tiêu đề và tên kênh sang tiếng Anh...');
+        
+        for (let i = 0; i < this.searchResults.length; i++) {
+            const result = this.searchResults[i];
+            
+            try {
+                // Dịch title nếu không phải tiếng Anh
+                if (!this.isEnglish(result.originalTitle)) {
+                    const translatedTitle = await this.simpleTranslate(result.originalTitle);
+                    if (translatedTitle && translatedTitle !== result.originalTitle) {
+                        result.title = translatedTitle;
+                        console.log(`✅ Title: "${result.originalTitle.substring(0, 30)}..." → "${translatedTitle.substring(0, 30)}..."`);
+                    }
+                }
+                
+                // Delay nhỏ
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Dịch channel name nếu không phải tiếng Anh
+                if (!this.isEnglish(result.originalChannelName)) {
+                    const translatedChannelName = await this.simpleTranslate(result.originalChannelName);
+                    if (translatedChannelName && translatedChannelName !== result.originalChannelName) {
+                        result.channelName = translatedChannelName;
+                        console.log(`✅ Channel: "${result.originalChannelName.substring(0, 30)}..." → "${translatedChannelName.substring(0, 30)}..."`);
+                    }
+                }
+                
+                // Cập nhật summary với text đã dịch
+                result.summary = this.createSummary(
+                    result.channelName, 
+                    result.channelId, 
+                    result.title, 
+                    result.videoId, 
+                    result.duration, 
+                    result.keyword, 
+                    '', 
+                    result.channelUrl
+                );
+                
+                // Delay giữa các video
+                await new Promise(resolve => setTimeout(resolve, 200));
+                
+            } catch (error) {
+                console.warn(`❌ Lỗi dịch video ${i + 1}:`, error.message);
+                // Giữ nguyên text gốc nếu có lỗi
+            }
+        }
+        
+        console.log('✅ Hoàn thành dịch thuật!');
+    }
+
+    // Method dịch đơn giản sử dụng Google Translate miễn phí
+    async simpleTranslate(text) {
+        if (!text || text.trim() === '') return text;
+        
+        try {
+            // Sử dụng Google Translate qua mygoodtranslations.com (miễn phí)
+            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=${encodeURIComponent(text)}`;
+            
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            if (data && data[0] && data[0][0] && data[0][0][0]) {
+                return data[0][0][0];
+            }
+            
+            throw new Error('Google Translate response invalid');
+            
+        } catch (error) {
+            // Fallback: sử dụng MyMemory
+            try {
+                const url2 = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=auto|en`;
+                const response2 = await fetch(url2);
+                const data2 = await response2.json();
+                
+                if (data2.responseStatus === 200 && data2.responseData && data2.responseData.translatedText) {
+                    return data2.responseData.translatedText;
+                }
+                
+                throw new Error('MyMemory also failed');
+                
+            } catch (error2) {
+                console.warn('Tất cả dịch vụ dịch đều thất bại:', error2.message);
+                return text; // Trả về text gốc
+            }
+        }
+    }
+
+    // Kiểm tra text có phải tiếng Anh không
+    isEnglish(text) {
+        if (!text || text.length < 2) return true;
+        
+        // Kiểm tra có ký tự Unicode không (không phải ASCII)
+        const hasUnicode = /[^\u0000-\u007F]/.test(text);
+        
+        // Nếu có ký tự Unicode, có thể không phải tiếng Anh
+        if (hasUnicode) {
+            return false;
+        }
+        
+        // Kiểm tra tỷ lệ chữ cái Latin
+        const latinLetters = (text.match(/[a-zA-Z]/g) || []).length;
+        const totalChars = text.replace(/[\s\d\.,!?()'"@#$%^&*\-_+={}[\]\\|:;<>/~`]/g, '').length;
+        
+        if (totalChars === 0) return true; // Chỉ có số và ký tự đặc biệt
+        
+        return (latinLetters / totalChars) > 0.8; // 80% là chữ cái Latin
+    }
+
     // Thêm method mới để lấy thông tin channel chi tiết
     async getChannelDetails(channelIds) {
         try {
             if (channelIds.length === 0) return [];
             
             const channelIdsString = channelIds.join(',');
-            const response = await fetch(`${this.baseUrl}/channels?part=snippet&id=${channelIdsString}&key=${this.getCurrentApiKey()}`);
+            // Thêm hl=en để lấy thông tin channel bằng tiếng Anh
+            const response = await fetch(`${this.baseUrl}/channels?part=snippet&id=${channelIdsString}&hl=en&key=${this.getCurrentApiKey()}`);
             const data = await response.json();
             
             if (data.error) {
