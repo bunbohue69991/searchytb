@@ -430,8 +430,9 @@ class YouTubeSearchTool {
             type: 'video',
             maxResults: Math.min(videoCount, 50),
             key: this.getCurrentApiKey(),
-            regionCode: 'US', // Thêm để lấy kết quả từ khu vực Mỹ
-            relevanceLanguage: 'en', // Thêm để ưu tiên nội dung tiếng Anh
+            regionCode: 'US', // Lấy kết quả từ khu vực Mỹ
+            relevanceLanguage: 'en', // Ưu tiên nội dung tiếng Anh
+            hl: 'en', // Sử dụng hl=en để tìm kiếm, xử lý ngôn ngữ trong getVideoDetails
             ...filters
         };
         
@@ -616,8 +617,9 @@ class YouTubeSearchTool {
     async getVideoDetails(videoItems, keyword) {
         try {
             const videoIds = videoItems.map(item => item.id.videoId).join(',');
-            // Thêm statistics để lấy lượt xem và hl=en để lấy thông tin bằng tiếng Anh
-            const response = await fetch(`${this.baseUrl}/videos?part=snippet,contentDetails,liveStreamingDetails,statistics&id=${videoIds}&hl=en&key=${this.getCurrentApiKey()}`);
+            
+            // Lấy thông tin video với localized để kiểm tra xem có tiêu đề tiếng Anh không
+            const response = await fetch(`${this.baseUrl}/videos?part=snippet,contentDetails,liveStreamingDetails,statistics,localizations&id=${videoIds}&hl=en&key=${this.getCurrentApiKey()}`);
             const data = await response.json();
             
             if (data.error) {
@@ -654,27 +656,48 @@ class YouTubeSearchTool {
                     channelUrl = `https://www.youtube.com/@${channelInfo.snippet.handle.replace('@', '')}`;
                 }
                 
+                // Logic mới: Kiểm tra xem video có hỗ trợ tiêu đề tiếng Anh không
+                const defaultTitle = video.snippet.title; // Tiêu đề mặc định (có thể là tiếng Anh hoặc gốc)
+                const defaultChannelName = video.snippet.channelTitle;
+                
+                // Kiểm tra xem có localized title tiếng Anh không
+                let finalTitle = defaultTitle;
+                let finalChannelName = defaultChannelName;
+                
+                if (video.localizations && video.localizations.en) {
+                    // Video có hỗ trợ tiêu đề tiếng Anh
+                    const englishTitle = video.localizations.en.title;
+                    const englishDescription = video.localizations.en.description;
+                    
+                    if (englishTitle && englishTitle.trim() !== '') {
+                        finalTitle = englishTitle;
+                        console.log(`✅ Video ${video.id} có tiêu đề tiếng Anh: "${englishTitle.substring(0, 50)}..."`);
+                    } else {
+                        console.log(`🌐 Video ${video.id} không có tiêu đề tiếng Anh, giữ nguyên: "${defaultTitle.substring(0, 50)}..."`);
+                    }
+                } else {
+                    // Video không có localized tiếng Anh
+                    console.log(`🌐 Video ${video.id} không hỗ trợ tiếng Anh, giữ nguyên: "${defaultTitle.substring(0, 50)}..."`);
+                }
+                
                 return {
                     keyword: keyword,
-                    title: video.snippet.title,
-                    originalTitle: video.snippet.title, // Lưu tiêu đề gốc
+                    title: finalTitle,
+                    originalTitle: finalTitle,
                     videoId: video.id,
                     videoUrl: `https://www.youtube.com/watch?v=${video.id}`,
-                    channelName: video.snippet.channelTitle,
-                    originalChannelName: video.snippet.channelTitle, // Lưu tên kênh gốc
+                    channelName: finalChannelName,
+                    originalChannelName: finalChannelName,
                     channelId: video.snippet.channelId,
-                    channelUrl: channelUrl, // URL thực tế của channel
+                    channelUrl: channelUrl,
                     duration: originalDuration,
                     originalDuration: originalDuration,
                     viewCount: viewCount,
-                    summary: this.createSummary(video.snippet.channelTitle, video.snippet.channelId, video.snippet.title, video.id, originalDuration, keyword, '', channelUrl) // Truyền channelUrl vào
+                    summary: this.createSummary(finalChannelName, video.snippet.channelId, finalTitle, video.id, originalDuration, keyword, '', channelUrl)
                 };
             });
             
             this.searchResults = this.searchResults.concat(newResults);
-            
-            // Dịch tất cả title và channel name sau khi đã có kết quả
-            await this.translateAllResults();
             
         } catch (error) {
             console.error('Video details error:', error);
@@ -682,59 +705,12 @@ class YouTubeSearchTool {
         }
     }
     
-    // Method mới để dịch tất cả kết quả
+    // Method đã được vô hiệu hóa - không dịch tự động nữa
+    // YouTube API với hl=en đã xử lý việc hiển thị ngôn ngữ phù hợp
     async translateAllResults() {
-        if (this.searchResults.length === 0) return;
-        
-        console.log('🔄 Bắt đầu dịch tiêu đề và tên kênh sang tiếng Anh...');
-        
-        for (let i = 0; i < this.searchResults.length; i++) {
-            const result = this.searchResults[i];
-            
-            try {
-                // Dịch title nếu không phải tiếng Anh
-                if (!this.isEnglish(result.originalTitle)) {
-                    const translatedTitle = await this.simpleTranslate(result.originalTitle);
-                    if (translatedTitle && translatedTitle !== result.originalTitle) {
-                        result.title = translatedTitle;
-                        console.log(`✅ Title: "${result.originalTitle.substring(0, 30)}..." → "${translatedTitle.substring(0, 30)}..."`);
-                    }
-                }
-                
-                // Delay nhỏ
-                await new Promise(resolve => setTimeout(resolve, 100));
-                
-                // Dịch channel name nếu không phải tiếng Anh
-                if (!this.isEnglish(result.originalChannelName)) {
-                    const translatedChannelName = await this.simpleTranslate(result.originalChannelName);
-                    if (translatedChannelName && translatedChannelName !== result.originalChannelName) {
-                        result.channelName = translatedChannelName;
-                        console.log(`✅ Channel: "${result.originalChannelName.substring(0, 30)}..." → "${translatedChannelName.substring(0, 30)}..."`);
-                    }
-                }
-                
-                // Cập nhật summary với text đã dịch
-                result.summary = this.createSummary(
-                    result.channelName, 
-                    result.channelId, 
-                    result.title, 
-                    result.videoId, 
-                    result.duration, 
-                    result.keyword, 
-                    '', 
-                    result.channelUrl
-                );
-                
-                // Delay giữa các video
-                await new Promise(resolve => setTimeout(resolve, 200));
-                
-            } catch (error) {
-                console.warn(`❌ Lỗi dịch video ${i + 1}:`, error.message);
-                // Giữ nguyên text gốc nếu có lỗi
-            }
-        }
-        
-        console.log('✅ Hoàn thành dịch thuật!');
+        // Không làm gì cả - YouTube API đã xử lý việc hiển thị ngôn ngữ
+        console.log('ℹ️ Bỏ qua dịch thuật tự động - YouTube API đã xử lý ngôn ngữ phù hợp');
+        return;
     }
 
     // Method dịch đơn giản sử dụng Google Translate miễn phí
@@ -801,8 +777,9 @@ class YouTubeSearchTool {
             if (channelIds.length === 0) return [];
             
             const channelIdsString = channelIds.join(',');
-            // Thêm hl=en để lấy thông tin channel bằng tiếng Anh
-            const response = await fetch(`${this.baseUrl}/channels?part=snippet&id=${channelIdsString}&hl=en&key=${this.getCurrentApiKey()}`);
+            
+            // Lấy thông tin channel với localized để kiểm tra xem có tên tiếng Anh không
+            const response = await fetch(`${this.baseUrl}/channels?part=snippet,localizations&id=${channelIdsString}&hl=en&key=${this.getCurrentApiKey()}`);
             const data = await response.json();
             
             if (data.error) {
@@ -810,7 +787,36 @@ class YouTubeSearchTool {
                 return [];
             }
             
-            return data.items || [];
+            // Xử lý kết quả để chọn tên channel phù hợp
+            const processedChannels = data.items.map(channel => {
+                const defaultTitle = channel.snippet.title;
+                let finalTitle = defaultTitle;
+                
+                // Kiểm tra xem có localized title tiếng Anh không
+                if (channel.localizations && channel.localizations.en) {
+                    const englishTitle = channel.localizations.en.title;
+                    
+                    if (englishTitle && englishTitle.trim() !== '') {
+                        finalTitle = englishTitle;
+                        console.log(`✅ Channel ${channel.id} có tên tiếng Anh: "${englishTitle}"`);
+                    } else {
+                        console.log(`🌐 Channel ${channel.id} không có tên tiếng Anh, giữ nguyên: "${defaultTitle}"`);
+                    }
+                } else {
+                    console.log(`🌐 Channel ${channel.id} không hỗ trợ tiếng Anh, giữ nguyên: "${defaultTitle}"`);
+                }
+                
+                // Tạo channel object với tên đã được xử lý
+                return {
+                    ...channel,
+                    snippet: {
+                        ...channel.snippet,
+                        title: finalTitle
+                    }
+                };
+            });
+            
+            return processedChannels;
         } catch (error) {
             console.warn('Error fetching channel details:', error);
             return [];
