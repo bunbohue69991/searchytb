@@ -10,18 +10,69 @@
     <div class="container">
         <h1>🔍 YouTube Video Search Tool</h1>
         
+        <!-- API Key Section -->
+        <div class="api-key-section">
+            <h2>🔑 Cấu hình API Key</h2>
+            <div class="api-key-input-group">
+                <div class="api-key-field">
+                    <label for="apiKeyInput">YouTube API Keys (mỗi key một dòng):</label>
+                    <textarea id="apiKeyInput" placeholder="Paste API keys vào đây, mỗi key một dòng...
+AIzaSyBjOpGZloLYRODbhLHmwBHAiDGW5gyL-kA
+AIzaSyBuaYNucuCrJrOzSEN2wIG2yGxUKVBKbvM" class="api-key-textarea" rows="3"></textarea>
+                    <div class="api-key-controls">
+                        <button id="addMoreKeys" class="add-btn">➕ Thêm key</button>
+                        <button id="validateAllKeys" class="validate-btn">🔍 Kiểm tra</button>
+                        <button id="clearAllKeys" class="clear-btn">🗑️ Xóa tất cả</button>
+                        <span class="api-key-count">0 key</span>
+                    </div>
+                </div>
+                <div class="api-key-info">
+                    <p>💡 <strong>Hướng dẫn lấy API Key:</strong></p>
+                    <ol>
+                        <li>Truy cập <a href="https://console.developers.google.com/" target="_blank">Google Cloud Console</a></li>
+                        <li>Tạo project mới hoặc chọn project hiện có</li>
+                        <li>Bật YouTube Data API v3</li>
+                        <li>Tạo API Key trong phần Credentials</li>
+                        <li>Copy và dán vào ô trên (mỗi key một dòng)</li>
+                    </ol>
+                    <div class="api-status-list">
+                        <h4>📊 Trạng thái API Keys:</h4>
+                        <div id="apiStatusList" class="status-list">
+                            <p class="no-keys">Chưa có API key nào</p>
+                        </div>
+                        <div class="current-key-info">
+                            <p><strong>🎯 Key đang sử dụng:</strong> <span id="currentKeyIndex">Chưa có</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Bước 1: Tìm kiếm với bộ lọc -->
         <div class="search-section">
             <h2>Bước 1: Tìm kiếm video</h2>
             
             <div class="search-input-group">
-                <textarea id="searchKeyword" placeholder="Nhập từ khóa tìm kiếm (mỗi từ khóa trên một dòng)..." class="search-textarea" rows="3"></textarea>
+                <textarea id="searchKeyword" placeholder="Nhập từ khóa tìm kiếm (có thể ngắt bằng xuống dòng hoặc dấu phẩy)...
+Ví dụ: 
+relaxing music, rain sounds
+meditation music
+sleep music, nature sounds" class="search-textarea" rows="3"></textarea>
                 <button id="searchBtn" class="search-btn">🔍 Tìm kiếm</button>
             </div>
             
             <!-- Bộ lọc tìm kiếm -->
             <div class="filters-section">
                 <h3>Bộ lọc tìm kiếm</h3>
+                
+                <div class="keyword-info">
+                    <p><strong>💡 Cách nhập từ khóa:</strong></p>
+                    <ul>
+                        <li><strong>Xuống dòng:</strong> Mỗi từ khóa trên một dòng riêng</li>
+                        <li><strong>Dấu phẩy:</strong> Ngăn cách bằng dấu phẩy trong cùng dòng</li>
+                        <li><strong>Kết hợp:</strong> Có thể dùng cả hai cách cùng lúc</li>
+                    </ul>
+                </div>
                 
                 <div class="filter-group">
                     <label>Ngày tải lên:</label>
@@ -98,13 +149,28 @@
                         <label for="customValue">Giá trị bổ sung (tùy chọn):</label>
                         <input type="text" id="customValue" placeholder="VD: Rain Sounds for Sleeping" class="custom-input">
                     </div>
+                    <div class="custom-field format-options">
+                        <label class="format-title">Thêm vào cuối tổng hợp:</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="addChannelName" class="format-checkbox">
+                                <span class="checkbox-text">|tên kênh</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="addVideoTitle" class="format-checkbox">
+                                <span class="checkbox-text">|tên video</span>
+                            </label>
+                        </div>
+                        <small class="format-help">Có thể chọn cả hai. Thứ tự hiển thị theo thứ tự tick.</small>
+                    </div>
                     <div class="apply-field">
                         <button id="applyBtn" class="apply-btn" disabled>🔄 Áp dụng</button>
                     </div>
                 </div>
                 <div class="button-group">
+                    <button id="copySelectedBtn" class="copy-selected-btn" disabled>📄 Copy đã chọn (0)</button>
                     <button id="downloadBtn" class="download-btn" disabled>📋 Copy tất cả dữ liệu</button>
-                    <button id="copyColumn8Btn" class="copy-column8-btn" disabled> Copy cột 8</button>
+                    <button id="copyColumn8Btn" class="copy-column8-btn" disabled>Copy cột 8</button>
                 </div>
             </div>
             
@@ -117,14 +183,19 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Cột 1<br>Từ khóa</th>
-                            <th>Cột 2<br>Tiêu đề video</th>
-                            <th>Cột 3<br>Link video (ID)</th>
-                            <th>Cột 4<br>Link video (Full)</th>
-                            <th>Cột 5<br>Tên kênh</th>
-                            <th>Cột 6<br>Link kênh</th>
-                            <th>Cột 7<br>Thời lượng</th>
-                            <th>Cột 8<br>Tổng hợp</th>
+                            <th class="stt-header" onclick="toggleSelectAll()">STT</th>
+                            <th class="select-all-header" onclick="toggleSelectAll()">☑️<br><input type="checkbox" id="selectAllCheckbox" class="select-all-checkbox"></th>
+                            <th>Thumbnail</th>
+                            <th>Cột 1<br>Từ khóa<br><input type="checkbox" id="includeKeyword" class="column-checkbox" checked></th>
+                            <th>Cột 2<br>Tiêu đề video<br><input type="checkbox" id="includeTitle" class="column-checkbox" checked></th>
+                            <th>Cột 3<br>Link video (ID)<br><input type="checkbox" id="includeVideoId" class="column-checkbox" checked></th>
+                            <th>Cột 4<br>Link video (Full)<br><input type="checkbox" id="includeVideoUrl" class="column-checkbox" checked></th>
+                            <th>Cột 5<br>Tên kênh<br><input type="checkbox" id="includeChannelName" class="column-checkbox" checked></th>
+                            <th>Cột 6<br>Link kênh<br><input type="checkbox" id="includeChannelUrl" class="column-checkbox" checked></th>
+                            <th>Cột 7<br>Thời lượng<br><input type="checkbox" id="includeDuration" class="column-checkbox" checked></th>
+                            <th>Cột 8<br>Lượt xem</th>
+                            <th>Cột 9<br>Comment</th>
+                            <th>Cột 10<br>Tổng hợp</th>
                         </tr>
                     </thead>
                     <tbody id="resultsBody">
@@ -134,6 +205,40 @@
             
             <div id="error" class="error hidden">
                 <p>❌ Có lỗi xảy ra khi tìm kiếm. Vui lòng thử lại.</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal hiển thị comment -->
+    <div id="commentModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>💬 Comments</h3>
+                <div class="modal-header-actions">
+                    <div class="comment-controls">
+                        <label for="commentLimit">Hiển thị:</label>
+                        <input type="number" id="commentLimit" value="50" min="10" max="500" step="10" class="comment-limit-input">
+                        <button id="loadCommentsBtn" class="load-comments-btn" onclick="loadSpecificAmountComments()">🔄 Load</button>
+                    </div>
+                    <button id="copyAllCommentsBtn" class="copy-all-btn" onclick="copyAllComments()">📋 Copy All (0)</button>
+                    <span class="close-btn" onclick="closeCommentModal()">&times;</span>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div class="video-info">
+                    <h4 id="commentVideoTitle">Video Title</h4>
+                    <p id="commentVideoChannel">Channel Name</p>
+                </div>
+                <div id="commentLoading" class="comment-loading hidden">
+                    <div class="spinner"></div>
+                    <p>Đang tải comment...</p>
+                </div>
+                <div id="commentList" class="comment-list">
+                    <!-- Comments sẽ được load ở đây -->
+                </div>
+                <div id="commentError" class="comment-error hidden">
+                    <p>❌ Không thể tải comment</p>
+                </div>
             </div>
         </div>
     </div>
