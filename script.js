@@ -1102,7 +1102,7 @@ class YouTubeSearchTool {
                     <input type="checkbox" class="row-checkbox" data-index="${index}">
                 </td>
                 <td class="thumbnail-cell">
-                    <img src="${result.thumbnail}" alt="Video thumbnail" class="video-thumbnail" onclick="window.open('${result.videoUrl}', '_blank')">
+                    <img src="${result.thumbnail}" alt="Video thumbnail" class="video-thumbnail" onclick="showThumbnailModal('${result.thumbnail}', '${result.title.replace(/'/g, "\\'")}', '${result.channelName.replace(/'/g, "\\'")}', '${result.duration}', '${result.videoUrl}')">
                 </td>
                 <td>${result.keyword}</td>
                 <td>${result.title}</td>
@@ -1733,6 +1733,34 @@ function showNotification(message, duration = 2000) {
     }, duration);
 }
 
+// Global functions cho thumbnail modal
+function showThumbnailModal(thumbnailUrl, videoTitle, channelName, duration, videoUrl) {
+    // Hiển thị modal
+    document.getElementById('thumbnailModal').classList.remove('hidden');
+    
+    // Set thumbnail image
+    document.getElementById('zoomedThumbnail').src = thumbnailUrl;
+    
+    // Set video info
+    document.getElementById('thumbnailVideoTitle').textContent = videoTitle;
+    document.getElementById('thumbnailVideoChannel').textContent = channelName;
+    document.getElementById('thumbnailVideoDuration').textContent = `Thời lượng: ${duration}`;
+    
+    // Store video URL for open button
+    document.getElementById('openVideoBtn').setAttribute('data-video-url', videoUrl);
+}
+
+function closeThumbnailModal() {
+    document.getElementById('thumbnailModal').classList.add('hidden');
+}
+
+function openVideoFromThumbnail() {
+    const videoUrl = document.getElementById('openVideoBtn').getAttribute('data-video-url');
+    if (videoUrl) {
+        window.open(videoUrl, '_blank');
+    }
+}
+
 // Global functions cho modal
 async function loadVideoComments(videoId, title, channelName) {
     // Hiển thị modal
@@ -1825,18 +1853,26 @@ function closeCommentModal() {
 
 // Close modal khi click outside
 window.onclick = function(event) {
-    const modal = document.getElementById('commentModal');
-    if (event.target == modal) {
+    const commentModal = document.getElementById('commentModal');
+    const thumbnailModal = document.getElementById('thumbnailModal');
+    
+    if (event.target == commentModal) {
         closeCommentModal();
+    } else if (event.target == thumbnailModal) {
+        closeThumbnailModal();
     }
 }
 
 // Keyboard shortcut để đóng modal (ESC)
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
-        const modal = document.getElementById('commentModal');
-        if (!modal.classList.contains('hidden')) {
+        const commentModal = document.getElementById('commentModal');
+        const thumbnailModal = document.getElementById('thumbnailModal');
+        
+        if (!commentModal.classList.contains('hidden')) {
             closeCommentModal();
+        } else if (!thumbnailModal.classList.contains('hidden')) {
+            closeThumbnailModal();
         }
     }
 });

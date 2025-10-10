@@ -243,6 +243,29 @@ sleep music, nature sounds" class="search-textarea" rows="3"></textarea>
         </div>
     </div>
     
+    <!-- Modal phóng to thumbnail -->
+    <div id="thumbnailModal" class="modal hidden">
+        <div class="modal-content thumbnail-modal-content">
+            <div class="modal-header">
+                <h3>🖼️ Video Thumbnail</h3>
+                <div class="modal-header-actions">
+                    <button id="openVideoBtn" class="open-video-btn" onclick="openVideoFromThumbnail()">▶️ Mở Video</button>
+                    <span class="close-btn" onclick="closeThumbnailModal()">&times;</span>
+                </div>
+            </div>
+            <div class="modal-body thumbnail-modal-body">
+                <div class="thumbnail-zoom-container">
+                    <img id="zoomedThumbnail" src="" alt="Video thumbnail" class="zoomed-thumbnail">
+                </div>
+                <div class="thumbnail-info">
+                    <h4 id="thumbnailVideoTitle">Video Title</h4>
+                    <p id="thumbnailVideoChannel">Channel Name</p>
+                    <p id="thumbnailVideoDuration">Duration</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <script src="script.js"></script>
 </body>
 </html>
